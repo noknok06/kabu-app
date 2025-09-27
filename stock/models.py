@@ -83,3 +83,38 @@ class Indicator(models.Model):
     
     def __str__(self):
         return f"{self.stock.code} - {self.date}"
+    
+# stock/models.py に追加
+
+class AdvancedIndicator(models.Model):
+    """高度指標データ"""
+    stock = models.ForeignKey(Stock, on_delete=models.CASCADE, related_name='advanced_indicators')
+    date = models.DateField(verbose_name="取得日")
+    
+    # 収益性指標
+    roe = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True, verbose_name="ROE")
+    roa = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True, verbose_name="ROA")
+    roic = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True, verbose_name="ROIC")
+    
+    # バリュエーション
+    psr = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True, verbose_name="PSR")
+    ev_ebitda = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True, verbose_name="EV/EBITDA")
+    
+    # 安全性指標
+    debt_equity_ratio = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True, verbose_name="D/Eレシオ")
+    current_ratio = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True, verbose_name="流動比率")
+    equity_ratio = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True, verbose_name="自己資本比率")
+    
+    # 効率性指標
+    asset_turnover = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True, verbose_name="総資産回転率")
+    inventory_turnover = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True, verbose_name="棚卸回転率")
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        unique_together = ['stock', 'date']
+        ordering = ['-date']
+    
+    def __str__(self):
+        return f"{self.stock.code} - {self.date}"    
