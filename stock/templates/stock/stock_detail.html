@@ -410,25 +410,7 @@
         </div>
         {% endif %}
     </div>
-
-    <!-- 株価推移グラフ -->
-    {% if chart_data.prices %}
-    <div class="analysis-section animate-fade-in">
-        <div class="section-header">
-            <div class="section-icon">
-                <i class="fas fa-chart-line"></i>
-            </div>
-            <div>
-                <h4 class="mb-1">株価推移</h4>
-                <small class="text-muted">過去{{ chart_data.prices|length }}日間の価格動向</small>
-            </div>
-        </div>
-        <div class="chart-container">
-            <canvas id="priceChart"></canvas>
-        </div>
-    </div>
-    {% endif %}
-
+    
     <!-- 財務データテーブル -->
     {% if financials %}
     <div class="analysis-section animate-fade-in">

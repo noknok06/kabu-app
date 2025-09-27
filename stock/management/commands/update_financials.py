@@ -1,4 +1,4 @@
-# stock/management/commands/update_financials.py
+# stocks/management/commands/update_financials.py
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from stock.models import Stock, Financial
@@ -59,14 +59,14 @@ class Command(BaseCommand):
         if specific_code:
             self.stdout.write(f'銘柄 {specific_code} の財務データ更新を開始...')
             self.stdout.write(f'取得年数: {years}年')
-            
+
             success = StockDataFetcher.fetch_financial_data(specific_code, years)
             if success:
                 # 更新後の財務データ確認
                 try:
-                    stock = Stock.objects.get(code=specific_code)
-                    financial_count = stock.financials.count()
-                    latest_year = stock.financials.first().year if financial_count > 0 else None
+                    stocks = Stock.objects.get(code=specific_code)
+                    financial_count = stocks.financials.count()
+                    latest_year = stocks.financials.first().year if financial_count > 0 else None
                     
                     self.stdout.write(
                         self.style.SUCCESS(
@@ -75,7 +75,7 @@ class Command(BaseCommand):
                             f'  最新年度: {latest_year}'
                         )
                     )
-                except Stock.DoesNotExist:
+                except stocks.DoesNotExist:
                     self.stdout.write(self.style.ERROR(f'銘柄 {specific_code} が見つかりません'))
             else:
                 self.stdout.write(
@@ -84,20 +84,20 @@ class Command(BaseCommand):
             return
         
         # 全銘柄または制限付きでの更新
-        stock = Stock.objects.all().order_by('code')
-        
+        stocks = Stock.objects.all().order_by('code')
+                
         # 既存財務データがない銘柄を優先（force_updateでない場合）
         if not force_update:
-            stock_without_financials = stock.filter(financials__isnull=True).distinct()
-            stock_with_financials = stock.filter(financials__isnull=False).distinct()
+            stocks_without_financials = stocks.filter(financials__isnull=True).distinct()
+            stocks_with_financials = stocks.filter(financials__isnull=False).distinct()
             # 財務データがない銘柄を優先
-            stock = list(stock_without_financials) + list(stock_with_financials)
-        
+            stocks = list(stocks_without_financials) + list(stocks_with_financials)
+
         if limit:
-            stock = stock[:limit]
+            stocks = stocks[:limit]
             self.stdout.write(f'制限モード: 最初の {limit} 銘柄を更新')
-        
-        total_count = len(stock)
+
+        total_count = len(stocks)
         success_count = 0
         error_count = 0
         skip_count = 0
@@ -110,14 +110,13 @@ class Command(BaseCommand):
         # バッチ処理
         for i in range(0, total_count, batch_size):
             batch_end = min(i + batch_size, total_count)
-            batch = stock[i:batch_end]
+            batch = stocks[i:batch_end]
             
             self.stdout.write(f'\n--- バッチ {i//batch_size + 1} 開始 ({i+1}-{batch_end}/{total_count}) ---')
             
             batch_success = 0
-            for stock in batch:
+            for stock in batch:  # ★ 単数形に修正
                 try:
-                    # 既存データのチェック（force_updateでない場合）
                     if not force_update:
                         existing_count = stock.financials.count()
                         if existing_count >= years:
@@ -127,18 +126,15 @@ class Command(BaseCommand):
                                 f'(既存データ {existing_count}件)'
                             )
                             continue
-                    
+
                     self.stdout.write(f'処理中: {stock.code} - {stock.name}', ending='... ')
                     
-                    success = StockDataFetcher.fetch_financial_data(stock.code, years)
+                    success = StockDataFetcher.fetch_financial_data(stock.code, years)  # ★クラス名修正
                     if success:
-                        # 更新後のデータ件数確認
                         updated_count = stock.financials.count()
                         success_count += 1
                         batch_success += 1
-                        self.stdout.write(
-                            self.style.SUCCESS(f'✓ ({updated_count}件)')
-                        )
+                        self.stdout.write(self.style.SUCCESS(f'✓ ({updated_count}件)'))
                     else:
                         error_count += 1
                         self.stdout.write(self.style.WARNING('⚠'))

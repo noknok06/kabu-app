@@ -1,13 +1,136 @@
-<!-- stock/templates/stock/screening.html -->
+<!-- stock/templates/stock/screening.html - 拡張版 -->
 {% extends 'stock/base.html' %}
 
 {% block title %}スクリーニング - 株式スクリーニング{% endblock %}
+
+{% block extra_css %}
+<style>
+    .condition-section {
+        background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        border-left: 4px solid #667eea;
+    }
+    
+    .condition-header {
+        font-weight: 600;
+        color: #667eea;
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+    }
+    
+    .condition-icon {
+        margin-right: 8px;
+        width: 20px;
+    }
+    
+    .range-input-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .range-separator {
+        font-weight: bold;
+        color: #6c757d;
+        min-width: 20px;
+        text-align: center;
+    }
+    
+    .preset-button {
+        margin: 2px;
+        padding: 8px 16px;
+        border: 1px solid #667eea;
+        background: white;
+        color: #667eea;
+        border-radius: 20px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-size: 0.9rem;
+    }
+    
+    .preset-button:hover, .preset-button.active {
+        background: #667eea;
+        color: white;
+        transform: translateY(-2px);
+    }
+    
+    .advanced-toggle {
+        cursor: pointer;
+        color: #667eea;
+        text-decoration: none;
+        font-size: 0.9rem;
+    }
+    
+    .advanced-toggle:hover {
+        text-decoration: underline;
+    }
+    
+    .advanced-section {
+        display: none;
+        margin-top: 15px;
+        padding-top: 15px;
+        border-top: 1px solid #e9ecef;
+    }
+    
+    .advanced-section.show {
+        display: block;
+    }
+    
+    .condition-tabs {
+        border: none;
+        margin-bottom: 20px;
+    }
+    
+    .condition-tabs .nav-link {
+        border: 1px solid #e9ecef;
+        color: #667eea;
+        border-radius: 8px 8px 0 0;
+        margin-right: 5px;
+    }
+    
+    .condition-tabs .nav-link.active {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        border-color: #667eea;
+    }
+    
+    .tab-content {
+        border: 1px solid #e9ecef;
+        border-radius: 0 8px 8px 8px;
+        padding: 20px;
+        background: white;
+    }
+    
+    .quick-preset-area {
+        background: linear-gradient(135deg, #e3f2fd, #f3e5f5);
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .form-label-enhanced {
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 5px;
+    }
+    
+    .help-text-enhanced {
+        font-size: 0.8rem;
+        color: #6c757d;
+        margin-top: 2px;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-4 border-bottom">
     <h1 class="h2">
         <i class="fas fa-filter text-primary me-2"></i>
-        株式スクリーニング
+        株式スクリーニング <span class="badge bg-success">拡張版</span>
     </h1>
     <div class="btn-toolbar mb-2 mb-md-0">
         {% if results and has_search %}
@@ -31,133 +154,260 @@
 <!-- スクリーニングフォーム -->
 <div class="filter-form">
     <form method="get" id="screening-form">
-        <div class="row align-items-end">
-            <div class="col-12 mb-3">
-                <h5 class="text-primary">
-                    <i class="fas fa-sliders-h me-2"></i>
-                    スクリーニング条件
-                </h5>
-                <p class="text-muted mb-0">条件を指定して該当する銘柄を検索します</p>
+        <!-- クイック設定プリセット -->
+        <div class="quick-preset-area">
+            <h6 class="mb-3">
+                <i class="fas fa-magic me-2"></i>
+                クイック設定
+            </h6>
+            <div class="d-flex flex-wrap gap-2">
+                <button type="button" class="preset-button" onclick="applyPreset('value')">
+                    <i class="fas fa-gem me-1"></i>割安株
+                </button>
+                <button type="button" class="preset-button" onclick="applyPreset('dividend')">
+                    <i class="fas fa-coins me-1"></i>高配当株
+                </button>
+                <button type="button" class="preset-button" onclick="applyPreset('growth')">
+                    <i class="fas fa-chart-line me-1"></i>成長株
+                </button>
+                <button type="button" class="preset-button" onclick="applyPreset('quality')">
+                    <i class="fas fa-star me-1"></i>優良株
+                </button>
+                <button type="button" class="preset-button" onclick="applyPreset('defensive')">
+                    <i class="fas fa-shield-alt me-1"></i>安定株
+                </button>
+                <button type="button" class="preset-button" onclick="clearForm()">
+                    <i class="fas fa-eraser me-1"></i>クリア
+                </button>
             </div>
         </div>
         
-        <!-- 指標条件 -->
-        <div class="row">
-            <div class="col-md-4">
-                <div class="mb-3">
-                    <label class="form-label">
-                        <i class="fas fa-chart-line text-primary me-1"></i>
-                        {{ form.per_max.label }}
-                    </label>
-                    {{ form.per_max }}
-                    <div class="form-text">{{ form.per_max.help_text }}</div>
-                    {% if form.per_max.errors %}
-                        <div class="text-danger small">{{ form.per_max.errors }}</div>
-                    {% endif %}
+        <!-- タブ式条件設定 -->
+        <ul class="nav nav-tabs condition-tabs" id="conditionTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="basic-tab" data-bs-toggle="tab" data-bs-target="#basic" type="button" role="tab">
+                    <i class="fas fa-chart-bar me-1"></i>基本指標
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="growth-tab" data-bs-toggle="tab" data-bs-target="#growth" type="button" role="tab">
+                    <i class="fas fa-trending-up me-1"></i>成長性
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="price-tab" data-bs-toggle="tab" data-bs-target="#price" type="button" role="tab">
+                    <i class="fas fa-yen-sign me-1"></i>株価・配当
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="market-tab" data-bs-toggle="tab" data-bs-target="#market" type="button" role="tab">
+                    <i class="fas fa-building me-1"></i>市場・業種
+                </button>
+            </li>
+        </ul>
+        
+        <div class="tab-content" id="conditionTabContent">
+            <!-- 基本指標タブ -->
+            <div class="tab-pane fade show active" id="basic" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label-enhanced">
+                                <i class="fas fa-chart-line text-primary me-1"></i>
+                                PER（株価収益率）
+                            </label>
+                            <div class="range-input-group">
+                                {{ form.per_min }}
+                                <span class="range-separator">〜</span>
+                                {{ form.per_max }}
+                            </div>
+                            <div class="help-text-enhanced">低いほど割安（目安: 10-15倍以下）</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label-enhanced">
+                                <i class="fas fa-chart-area text-success me-1"></i>
+                                PBR（株価純資産倍率）
+                            </label>
+                            <div class="range-input-group">
+                                {{ form.pbr_min }}
+                                <span class="range-separator">〜</span>
+                                {{ form.pbr_max }}
+                            </div>
+                            <div class="help-text-enhanced">1倍以下で理論的割安</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label-enhanced">
+                                <i class="fas fa-percentage text-warning me-1"></i>
+                                純利益率（%）
+                            </label>
+                            {{ form.profit_margin_min }}
+                            <div class="help-text-enhanced">純利益/売上高（目安: 5%以上）</div>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div class="col-md-4">
-                <div class="mb-3">
-                    <label class="form-label">
-                        <i class="fas fa-chart-area text-success me-1"></i>
-                        {{ form.pbr_max.label }}
-                    </label>
-                    {{ form.pbr_max }}
-                    <div class="form-text">{{ form.pbr_max.help_text }}</div>
-                    {% if form.pbr_max.errors %}
-                        <div class="text-danger small">{{ form.pbr_max.errors }}</div>
-                    {% endif %}
+            
+            <!-- 成長性タブ -->
+            <div class="tab-pane fade" id="growth" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label-enhanced">
+                                <i class="fas fa-chart-bar text-info me-1"></i>
+                                連続増益年数
+                            </label>
+                            {{ form.consecutive_profit_years }}
+                            <div class="help-text-enhanced">指定年数連続で純利益増加</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label-enhanced">
+                                <i class="fas fa-arrow-up text-success me-1"></i>
+                                売上高成長率（%）
+                            </label>
+                            <div class="range-input-group">
+                                {{ form.revenue_growth_min }}
+                                <span class="range-separator">〜</span>
+                                {{ form.revenue_growth_max }}
+                            </div>
+                            <div class="help-text-enhanced">前年同期比の売上高成長率</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label-enhanced">
+                                <i class="fas fa-rocket text-danger me-1"></i>
+                                純利益成長率（%）
+                            </label>
+                            <div class="range-input-group">
+                                {{ form.profit_growth_min }}
+                                <span class="range-separator">〜</span>
+                                {{ form.profit_growth_max }}
+                            </div>
+                            <div class="help-text-enhanced">前年同期比の純利益成長率</div>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div class="col-md-4">
-                <div class="mb-3">
-                    <label class="form-label">
-                        <i class="fas fa-percentage text-warning me-1"></i>
-                        {{ form.dividend_yield_min.label }}
-                    </label>
-                    {{ form.dividend_yield_min }}
-                    <div class="form-text">{{ form.dividend_yield_min.help_text }}</div>
-                    {% if form.dividend_yield_min.errors %}
-                        <div class="text-danger small">{{ form.dividend_yield_min.errors }}</div>
-                    {% endif %}
+            
+            <!-- 株価・配当タブ -->
+            <div class="tab-pane fade" id="price" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label-enhanced">
+                                <i class="fas fa-yen-sign text-primary me-1"></i>
+                                株価（円）
+                            </label>
+                            <div class="range-input-group">
+                                {{ form.price_min }}
+                                <span class="range-separator">〜</span>
+                                {{ form.price_max }}
+                            </div>
+                            <div class="help-text-enhanced">投資しやすい価格帯で絞り込み</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label-enhanced">
+                                <i class="fas fa-coins text-warning me-1"></i>
+                                配当利回り（%）
+                            </label>
+                            <div class="range-input-group">
+                                {{ form.dividend_yield_min }}
+                                <span class="range-separator">〜</span>
+                                {{ form.dividend_yield_max }}
+                            </div>
+                            <div class="help-text-enhanced">年間配当/株価（目安: 3%以上で高配当）</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 市場・業種タブ -->
+            <div class="tab-pane fade" id="market" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label-enhanced">
+                                <i class="fas fa-building text-secondary me-1"></i>
+                                市場区分
+                            </label>
+                            {{ form.market }}
+                            <div class="help-text-enhanced">プライム、スタンダード、グロースなど</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label-enhanced">
+                                <i class="fas fa-industry text-info me-1"></i>
+                                業種
+                            </label>
+                            {{ form.sector }}
+                            <div class="help-text-enhanced">医薬品、電気機器、銀行業など</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
         
-        <!-- その他条件 -->
-        <div class="row">
-            <div class="col-md-3">
-                <div class="mb-3">
-                    <label class="form-label">
-                        <i class="fas fa-chart-bar text-info me-1"></i>
-                        {{ form.consecutive_profit_years.label }}
-                    </label>
-                    {{ form.consecutive_profit_years }}
-                    <div class="form-text">{{ form.consecutive_profit_years.help_text }}</div>
-                    {% if form.consecutive_profit_years.errors %}
-                        <div class="text-danger small">{{ form.consecutive_profit_years.errors }}</div>
-                    {% endif %}
+        <!-- 実行・設定エリア -->
+        <div class="condition-section">
+            <div class="row align-items-end">
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label class="form-label-enhanced">
+                            <i class="fas fa-sort text-dark me-1"></i>
+                            並び替え
+                        </label>
+                        {{ form.sort_by }}
+                    </div>
                 </div>
-            </div>
-            <div class="col-md-3">
-                <div class="mb-3">
-                    <label class="form-label">
-                        <i class="fas fa-building text-secondary me-1"></i>
-                        {{ form.market.label }}
-                    </label>
-                    {{ form.market }}
-                    <div class="form-text">{{ form.market.help_text }}</div>
-                    {% if form.market.errors %}
-                        <div class="text-danger small">{{ form.market.errors }}</div>
-                    {% endif %}
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label class="form-label-enhanced">
+                            <i class="fas fa-list text-muted me-1"></i>
+                            表示件数
+                        </label>
+                        {{ form.limit }}
+                    </div>
                 </div>
-            </div>
-            <div class="col-md-3">
-                <div class="mb-3">
-                    <label class="form-label">
-                        <i class="fas fa-sort text-dark me-1"></i>
-                        {{ form.sort_by.label }}
-                    </label>
-                    {{ form.sort_by }}
-                    {% if form.sort_by.errors %}
-                        <div class="text-danger small">{{ form.sort_by.errors }}</div>
-                    {% endif %}
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="mb-3">
-                    <label class="form-label text-white">.</label>
-                    <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-primary" id="search-btn">
-                            <i class="fas fa-search me-1"></i>
+                <div class="col-md-6">
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="submit" class="btn btn-primary btn-lg" id="search-btn">
+                            <i class="fas fa-search me-2"></i>
                             <span class="btn-text">スクリーニング実行</span>
                             <span class="loading">
                                 <i class="fas fa-spinner fa-spin"></i>
                                 検索中...
                             </span>
                         </button>
+                        <a href="{% url 'stock:screening' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-eraser me-1"></i>
+                            リセット
+                        </a>
                     </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- アクションボタン -->
-        <div class="row">
-            <div class="col-12">
-                <div class="d-flex flex-wrap gap-2">
-                    <a href="{% url 'stock:screening' %}" class="btn btn-outline-secondary">
-                        <i class="fas fa-eraser me-1"></i>
-                        条件クリア
-                    </a>
-                    <button type="button" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#helpModal">
-                        <i class="fas fa-question-circle me-1"></i>
-                        使い方
-                    </button>
                 </div>
             </div>
         </div>
     </form>
 </div>
+
+<!-- 検索条件サマリー -->
+{% if form.is_valid and has_search %}
+<div class="alert alert-info">
+    <i class="fas fa-info-circle me-2"></i>
+    <strong>検索条件:</strong> {{ form.get_search_summary }}
+</div>
+{% endif %}
 
 <!-- 結果表示 -->
 {% if has_search %}
@@ -188,11 +438,11 @@
                         <i class="fas fa-code me-1"></i>
                         銘柄コード
                     </th>
-                    <th width="25%">
+                    <th width="20%">
                         <i class="fas fa-building me-1"></i>
                         企業名
                     </th>
-                    <th width="10%">
+                    <th width="8%">
                         <i class="fas fa-tags me-1"></i>
                         市場区分
                     </th>
@@ -214,7 +464,11 @@
                     </th>
                     <th width="8%">
                         <i class="fas fa-chart-bar me-1"></i>
-                        5年連続増益
+                        連続増益
+                    </th>
+                    <th width="8%">
+                        <i class="fas fa-percent me-1"></i>
+                        純利益率
                     </th>
                     <th width="8%">
                         <i class="fas fa-calendar me-1"></i>
@@ -286,6 +540,15 @@
                         <span class="badge badge-no-profit">-</span>
                         {% endif %}
                     </td>
+                    <td class="indicator-value">
+                        {% if result.profit_margin %}
+                            <span class="{% if result.profit_margin > 10 %}text-success{% elif result.profit_margin > 5 %}text-primary{% elif result.profit_margin > 0 %}text-warning{% else %}text-danger{% endif %}">
+                                {{ result.profit_margin|floatformat:1 }}%
+                            </span>
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
                     <td>
                         <small class="text-muted">{{ result.indicator.date|date:"Y-m-d" }}</small>
                     </td>
@@ -338,13 +601,6 @@
             {% endif %}
         </ul>
     </nav>
-    
-    <div class="text-center text-muted mt-2">
-        <small>
-            {{ results.start_index }}-{{ results.end_index }} / {{ total_count }}件 
-            ({{ results.paginator.num_pages }}ページ中 {{ results.number }}ページ目)
-        </small>
-    </div>
     {% endif %}
     
     {% else %}
@@ -354,13 +610,13 @@
         <h4 class="mt-3 text-muted">条件に一致する銘柄が見つかりませんでした</h4>
         <p class="text-muted">
             条件を緩和して再度お試しください。<br>
-            または、データ更新が必要な可能性があります。
+            または、クイック設定のプリセットをご利用ください。
         </p>
         <div class="mt-3">
-            <a href="{% url 'stock:screening' %}" class="btn btn-outline-primary me-2">
+            <button type="button" class="btn btn-outline-primary me-2" onclick="clearForm()">
                 <i class="fas fa-redo me-1"></i>
                 条件をリセット
-            </a>
+            </button>
             <a href="{% url 'stock:dashboard' %}" class="btn btn-outline-secondary">
                 <i class="fas fa-tachometer-alt me-1"></i>
                 ダッシュボードに戻る
@@ -374,20 +630,21 @@
 <div class="text-center py-5">
     <div class="stats-card">
         <i class="fas fa-filter text-primary fa-5x"></i>
-        <h3 class="mt-4 text-primary">スクリーニング条件を設定してください</h3>
+        <h3 class="mt-4 text-primary">高度なスクリーニング機能</h3>
         <p class="text-muted mt-3 mb-4">
-            上記のフォームに条件を入力し、「スクリーニング実行」ボタンをクリックしてください。<br>
-            PER、PBR、配当利回りなどの指標で銘柄を絞り込むことができます。
+            拡張された検索条件で、より詳細な銘柄絞り込みが可能です。<br>
+            クイック設定のプリセットボタンで簡単に始められます。
         </p>
         <div class="row mt-4">
-            <div class="col-md-6 mx-auto">
+            <div class="col-md-8 mx-auto">
                 <div class="border rounded p-3">
-                    <h6><i class="fas fa-lightbulb text-warning me-1"></i>スクリーニング例</h6>
+                    <h6><i class="fas fa-lightbulb text-warning me-1"></i>新機能のポイント</h6>
                     <ul class="text-start small text-muted mb-0">
-                        <li>割安株を探す: PER 15倍以下、PBR 1倍以下</li>
-                        <li>高配当株を探す: 配当利回り 3%以上</li>
-                        <li>成長株を探す: 5年連続増益</li>
-                        <li>プライム市場の銘柄のみ</li>
+                        <li><strong>数値指定:</strong> 連続増益年数を1-20年で自由に設定</li>
+                        <li><strong>範囲指定:</strong> PER、PBR、配当利回り、株価で上限・下限設定</li>
+                        <li><strong>成長率条件:</strong> 売上・純利益成長率を数値で指定</li>
+                        <li><strong>プリセット:</strong> よく使う条件をワンクリックで設定</li>
+                        <li><strong>純利益率:</strong> 企業の収益性を直接評価</li>
                     </ul>
                 </div>
             </div>
@@ -396,98 +653,163 @@
 </div>
 {% endif %}
 
-<!-- ヘルプモーダル -->
-<div class="modal fade" id="helpModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="fas fa-question-circle text-info me-2"></i>
-                    スクリーニング機能の使い方
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="row">
-                    <div class="col-md-6">
-                        <h6><i class="fas fa-chart-line text-primary me-1"></i>指標の説明</h6>
-                        <ul class="small">
-                            <li><strong>PER</strong>: 株価収益率（低いほど割安）</li>
-                            <li><strong>PBR</strong>: 株価純資産倍率（1倍以下で割安）</li>
-                            <li><strong>配当利回り</strong>: 年間配当/株価（高いほど高配当）</li>
-                            <li><strong>連続増益</strong>: 指定年数連続で純利益が増加</li>
-                        </ul>
-                        
-                        <h6 class="mt-3"><i class="fas fa-target text-success me-1"></i>おすすめ条件例</h6>
-                        <ul class="small">
-                            <li><strong>割安株</strong>: PER ≤ 15, PBR ≤ 1.2</li>
-                            <li><strong>高配当株</strong>: 配当利回り ≥ 3%</li>
-                            <li><strong>成長株</strong>: 5年連続増益</li>
-                        </ul>
-                    </div>
-                    <div class="col-md-6">
-                        <h6><i class="fas fa-exclamation-triangle text-warning me-1"></i>注意事項</h6>
-                        <ul class="small">
-                            <li>データはYahoo Financeから取得</li>
-                            <li>投資判断は必ず自己責任で</li>
-                            <li>最新データは管理コマンドで更新</li>
-                            <li>条件を厳しくしすぎると結果が0件になることがあります</li>
-                        </ul>
-                        
-                        <h6 class="mt-3"><i class="fas fa-keyboard text-info me-1"></i>操作方法</h6>
-                        <ul class="small">
-                            <li>条件を入力して「スクリーニング実行」</li>
-                            <li>結果はCSVでダウンロード可能</li>
-                            <li>「条件クリア」で全ての条件をリセット</li>
-                            <li>並び替えで結果の順序を変更</li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">閉じる</button>
-            </div>
-        </div>
-    </div>
-</div>
-
 {% endblock %}
 
 {% block extra_js %}
 <script>
-    // フォーム送信時のローディング表示
-    document.getElementById('screening-form').addEventListener('submit', function() {
-        const btn = document.getElementById('search-btn');
-        btn.classList.add('disabled');
-        btn.querySelector('.btn-text').style.display = 'none';
-        btn.querySelector('.loading').style.display = 'inline';
+// プリセット設定データ
+const presets = {
+    'value': {  // 割安株
+        'per_max': 15,
+        'pbr_max': 1.5,
+        'sort_by': 'per'
+    },
+    'dividend': {  // 高配当株
+        'dividend_yield_min': 3.0,
+        'sort_by': '-dividend_yield'
+    },
+    'growth': {  // 成長株
+        'consecutive_profit_years': 5,
+        'revenue_growth_min': 5.0,
+        'sort_by': 'consecutive_profit_years'
+    },
+    'quality': {  // 優良株
+        'consecutive_profit_years': 3,
+        'profit_margin_min': 5.0,
+        'per_max': 20,
+        'sort_by': '-profit_margin'
+    },
+    'defensive': {  // 安定株
+        'per_max': 12,
+        'dividend_yield_min': 2.5,
+        'sort_by': 'per'
+    }
+};
+
+// プリセット適用機能
+function applyPreset(presetType) {
+    if (!presets[presetType]) return;
+    
+    // 全フィールドをクリア
+    clearForm();
+    
+    const preset = presets[presetType];
+    
+    // プリセット値を設定
+    Object.keys(preset).forEach(field => {
+        const input = document.querySelector(`[name="${field}"]`);
+        if (input) {
+            input.value = preset[field];
+        }
     });
     
-    // テーブル行のホバー効果
-    document.addEventListener('DOMContentLoaded', function() {
-        const rows = document.querySelectorAll('.table-row-hover');
-        rows.forEach(function(row) {
-            row.addEventListener('mouseenter', function() {
-                this.style.transform = 'scale(1.01)';
-                this.style.transition = 'all 0.2s ease';
-                this.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
-            });
-            
-            row.addEventListener('mouseleave', function() {
-                this.style.transform = 'scale(1)';
-                this.style.boxShadow = 'none';
-            });
+    // プリセットボタンのアクティブ状態を更新
+    document.querySelectorAll('.preset-button').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    event.target.classList.add('active');
+    
+    // 成功メッセージ
+    showTemporaryMessage(`${getPresetName(presetType)}の条件を設定しました`, 'success');
+}
+
+// プリセット名を取得
+function getPresetName(presetType) {
+    const names = {
+        'value': '割安株',
+        'dividend': '高配当株', 
+        'growth': '成長株',
+        'quality': '優良株',
+        'defensive': '安定株'
+    };
+    return names[presetType] || '';
+}
+
+// フォームクリア機能
+function clearForm() {
+    document.getElementById('screening-form').reset();
+    document.querySelectorAll('.preset-button').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    showTemporaryMessage('条件をクリアしました', 'info');
+}
+
+// 一時的なメッセージ表示
+function showTemporaryMessage(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        <i class="fas fa-info-circle me-2"></i>
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    const container = document.querySelector('.filter-form');
+    container.insertBefore(alertDiv, container.firstChild);
+    
+    // 3秒後に自動削除
+    setTimeout(() => {
+        alertDiv.remove();
+    }, 3000);
+}
+
+// フォーム送信時のローディング表示
+document.getElementById('screening-form').addEventListener('submit', function() {
+    const btn = document.getElementById('search-btn');
+    btn.classList.add('disabled');
+    btn.querySelector('.btn-text').style.display = 'none';
+    btn.querySelector('.loading').style.display = 'inline';
+});
+
+// テーブル行のホバー効果
+document.addEventListener('DOMContentLoaded', function() {
+    const rows = document.querySelectorAll('.table-row-hover');
+    rows.forEach(function(row) {
+        row.addEventListener('mouseenter', function() {
+            this.style.transform = 'scale(1.01)';
+            this.style.transition = 'all 0.2s ease';
+            this.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+        });
+        
+        row.addEventListener('mouseleave', function() {
+            this.style.transform = 'scale(1)';
+            this.style.boxShadow = 'none';
         });
     });
-    
-    // 数値入力フィールドのバリデーション
-    const numberInputs = document.querySelectorAll('input[type="number"]');
-    numberInputs.forEach(function(input) {
-        input.addEventListener('input', function() {
+});
+
+// 数値入力フィールドのバリデーション
+const numberInputs = document.querySelectorAll('input[type="number"]');
+numberInputs.forEach(function(input) {
+    input.addEventListener('input', function() {
+        // 負の値チェック（特定フィールドのみ）
+        if (['per_min', 'per_max', 'pbr_min', 'pbr_max', 'dividend_yield_min', 'dividend_yield_max', 'price_min', 'price_max', 'consecutive_profit_years'].includes(this.name)) {
             if (this.value < 0) {
                 this.value = 0;
             }
-        });
+        }
+        
+        // 連続増益年数の上限チェック
+        if (this.name === 'consecutive_profit_years' && this.value > 20) {
+            this.value = 20;
+        }
     });
+});
+
+// キーボードショートカット
+document.addEventListener('keydown', function(e) {
+    // Ctrl+Enter でフォーム送信
+    if (e.ctrlKey && e.key === 'Enter') {
+        document.getElementById('screening-form').submit();
+    }
+    
+    // Ctrl+R でリセット
+    if (e.ctrlKey && e.key === 'r') {
+        e.preventDefault();
+        clearForm();
+    }
+});
+
+console.log('拡張スクリーニング機能が読み込まれました');
 </script>
 {% endblock %}

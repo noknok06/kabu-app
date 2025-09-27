@@ -35,11 +35,11 @@ class Command(BaseCommand):
             return
 
         # 全銘柄または制限付きでの更新
-        stock = Stock.objects.all().order_by('code')  # ★修正: 変数名をstockに
+        stocks = Stock.objects.all().order_by('code')  # ★修正: 変数名をstockに
         if limit:
-            stock = stock[:limit]
-        
-        total_count = stock.count()
+            stocks = stocks[:limit]
+
+        total_count = stocks.count()
         success_count = 0
         error_count = 0
         
@@ -48,7 +48,7 @@ class Command(BaseCommand):
         
         # バッチ処理
         for i in range(0, total_count, batch_size):
-            batch = stock[i:i + batch_size]  # ★修正: stockを使用
+            batch = stocks[i:i + batch_size]  # ← QuerySet なのでスライスOK
             self.stdout.write(f'\n--- バッチ {i//batch_size + 1} 開始 ({i+1}-{min(i+batch_size, total_count)}/{total_count}) ---')
             
             batch_success = 0
