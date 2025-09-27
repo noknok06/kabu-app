@@ -1,0 +1,322 @@
+<!-- stock/templates/stock/dashboard.html -->
+{% extends 'stock/base.html' %}
+
+{% block title %}ダッシュボード - 株式スクリーニング{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-4 border-bottom">
+    <h1 class="h2">
+        <i class="fas fa-tachometer-alt text-primary me-2"></i>
+        ダッシュボード
+    </h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <a href="{% url 'stock:screening' %}" class="btn btn-primary">
+                <i class="fas fa-filter me-1"></i>
+                スクリーニング開始
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- 統計情報カード -->
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="stats-card text-center">
+            <div class="text-muted">
+                <i class="fas fa-building fa-2x text-primary"></i>
+            </div>
+            <div class="stats-number text-primary">{{ total_stock|default:0 }}</div>
+            <h5 class="card-title">総銘柄数</h5>
+            <p class="text-muted">データベース登録済み</p>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="stats-card text-center">
+            <div class="text-muted">
+                <i class="fas fa-chart-line fa-2x text-success"></i>
+            </div>
+            <div class="stats-number text-success">{{ latest_indicators|default:0 }}</div>
+            <h5 class="card-title">最新指標データ</h5>
+            <p class="text-muted">過去7日間の更新</p>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="stats-card text-center">
+            <div class="text-muted">
+                <i class="fas fa-file-invoice-dollar fa-2x text-info"></i>
+            </div>
+            <div class="stats-number text-info">{{ total_financials|default:0 }}</div>
+            <h5 class="card-title">財務データ</h5>
+            <p class="text-muted">総レコード数</p>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="stats-card text-center">
+            <div class="text-muted">
+                <i class="fas fa-percentage fa-2x text-warning"></i>
+            </div>
+            <div class="stats-number text-warning">{{ financial_coverage|default:0 }}%</div>
+            <h5 class="card-title">財務データ率</h5>
+            <p class="text-muted">財務データがある銘柄</p>
+        </div>
+    </div>
+</div>
+
+<!-- 統計サマリーと市場区分 -->
+<div class="row mb-4">
+    <!-- 指標分布統計 -->
+    <div class="col-md-8">
+        <div class="stats-card">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5><i class="fas fa-chart-bar text-primary me-2"></i>指標分布統計</h5>
+                {% if distribution_stats.latest_date %}
+                <span class="badge bg-primary">{{ distribution_stats.latest_date }}</span>
+                {% endif %}
+            </div>
+            
+            {% if distribution_stats %}
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <div class="border-end">
+                                <h4 class="text-primary">{{ distribution_stats.avg_per|floatformat:1|default:"-" }}</h4>
+                                <small class="text-muted">平均PER</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <h4 class="text-success">{{ distribution_stats.avg_pbr|floatformat:2|default:"-" }}</h4>
+                            <small class="text-muted">平均PBR</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <h5 class="text-info">{{ distribution_stats.low_per_count|default:0 }}</h5>
+                            <small class="text-muted">PER<15倍</small>
+                        </div>
+                        <div class="col-4">
+                            <h5 class="text-info">{{ distribution_stats.low_pbr_count|default:0 }}</h5>
+                            <small class="text-muted">PBR<1.5倍</small>
+                        </div>
+                        <div class="col-4">
+                            <h5 class="text-warning">{{ distribution_stats.high_dividend_count|default:0 }}</h5>
+                            <small class="text-muted">配当利回り>3%</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="text-center py-3">
+                <i class="fas fa-exclamation-triangle text-warning fa-2x"></i>
+                <p class="text-muted mt-2">指標データがありません</p>
+                <small>管理コマンドでデータを更新してください</small>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- 市場区分別統計 -->
+    <div class="col-md-4">
+        <div class="stats-card">
+            <h5><i class="fas fa-chart-pie text-success me-2"></i>市場区分別</h5>
+            {% if market_stats %}
+            <div class="mt-3">
+                {% for market in market_stats %}
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="text-muted">{{ market.market|default:"未設定" }}</span>
+                    <div>
+                        <span class="badge bg-light text-dark">{{ market.count }}</span>
+                        <span class="text-muted small">
+                            ({{ market.count|floatformat:0 }}%)
+                        </span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-muted">データがありません</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- 最近の更新 -->
+<div class="row">
+    <div class="col-12">
+        <div class="stats-card">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5><i class="fas fa-clock text-info me-2"></i>最近更新された銘柄</h5>
+                <a href="{% url 'stock:screening' %}" class="btn btn-outline-primary btn-sm">
+                    <i class="fas fa-search me-1"></i>
+                    スクリーニングで検索
+                </a>
+            </div>
+            
+            {% if recent_indicators %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th><i class="fas fa-code me-1"></i>コード</th>
+                            <th><i class="fas fa-building me-1"></i>企業名</th>
+                            <th><i class="fas fa-chart-line me-1"></i>PER</th>
+                            <th><i class="fas fa-chart-area me-1"></i>PBR</th>
+                            <th><i class="fas fa-percentage me-1"></i>配当利回り</th>
+                            <th><i class="fas fa-yen-sign me-1"></i>株価</th>
+                            <th><i class="fas fa-calendar me-1"></i>更新日時</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for indicator in recent_indicators %}
+                        <tr>
+                            <td>
+                                <a href="{% url 'stock:stock_detail' stock_code=indicator.stock.code %}" class="text-decoration-none">
+                                    <strong class="text-primary">{{ indicator.stock.code }}</strong>
+                                </a>
+                            </td>
+                            <td>
+                                <div class="text-truncate" style="max-width: 200px;">
+                                    {{ indicator.stock.name }}
+                                </div>
+                                {% if indicator.stock.market %}
+                                <small class="text-muted">{{ indicator.stock.market }}</small>
+                                {% endif %}
+                            </td>
+                            <td class="indicator-value">
+                                {% if indicator.per %}
+                                    <span class="{% if indicator.per < 15 %}text-success{% elif indicator.per > 25 %}text-danger{% endif %}">
+                                        {{ indicator.per|floatformat:1 }}
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="indicator-value">
+                                {% if indicator.pbr %}
+                                    <span class="{% if indicator.pbr < 1 %}text-success{% elif indicator.pbr > 3 %}text-danger{% endif %}">
+                                        {{ indicator.pbr|floatformat:2 }}
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="indicator-value">
+                                {% if indicator.dividend_yield %}
+                                    <span class="{% if indicator.dividend_yield > 3 %}text-success{% endif %}">
+                                        {{ indicator.dividend_yield|floatformat:2 }}%
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if indicator.price %}
+                                    ¥{{ indicator.price|floatformat:0 }}
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <small class="text-muted">
+                                    {{ indicator.updated_at|date:"m/d H:i" }}
+                                </small>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-4">
+                <i class="fas fa-database text-muted fa-3x"></i>
+                <p class="text-muted mt-3">最近の更新データがありません</p>
+                <p class="small text-muted">
+                    データを取得するには管理コマンドを実行してください
+                </p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- 管理コマンド情報 -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="stats-card">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5><i class="fas fa-terminal text-dark me-2"></i>データ更新コマンド</h5>
+                <span class="badge bg-light text-dark">管理者向け</span>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="border rounded p-3 h-100">
+                        <h6><i class="fas fa-list me-1"></i>銘柄リスト更新</h6>
+                        <code class="d-block bg-light p-2 rounded">
+                            python manage.py update_stock_list
+                        </code>
+                        <small class="text-muted">JPXから上場銘柄一覧を取得</small>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="border rounded p-3 h-100">
+                        <h6><i class="fas fa-chart-line me-1"></i>指標データ更新</h6>
+                        <code class="d-block bg-light p-2 rounded">
+                            python manage.py update_indicators --limit 50
+                        </code>
+                        <small class="text-muted">PER, PBR, 配当利回りを取得</small>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="border rounded p-3 h-100">
+                        <h6><i class="fas fa-file-invoice-dollar me-1"></i>財務データ更新</h6>
+                        <code class="d-block bg-light p-2 rounded">
+                            python manage.py update_financials --limit 20
+                        </code>
+                        <small class="text-muted">売上高、純利益、EPSを取得</small>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-3 p-3 bg-light rounded">
+                <i class="fas fa-info-circle text-info me-1"></i>
+                <strong>運用のヒント:</strong>
+                <ul class="mb-0 mt-2">
+                    <li>初回は <code>update_stock_list</code> で銘柄を登録</li>
+                    <li>daily: <code>update_indicators --limit 100</code> で指標を更新</li>
+                    <li>weekly: <code>update_financials --limit 50</code> で財務を更新</li>
+                    <li>cron や celery での自動実行を推奨</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // 統計情報のカウントアップアニメーション
+    document.addEventListener('DOMContentLoaded', function() {
+        const statsNumbers = document.querySelectorAll('.stats-number');
+        
+        statsNumbers.forEach(function(element) {
+            const targetNumber = parseInt(element.textContent.replace(/,/g, ''));
+            let currentNumber = 0;
+            const increment = targetNumber / 50;
+            
+            const timer = setInterval(function() {
+                currentNumber += increment;
+                if (currentNumber >= targetNumber) {
+                    currentNumber = targetNumber;
+                    clearInterval(timer);
+                }
+                element.textContent = Math.floor(currentNumber).toLocaleString('ja-JP');
+            }, 30);
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,493 @@
+<!-- stock/templates/stock/screening.html -->
+{% extends 'stock/base.html' %}
+
+{% block title %}スクリーニング - 株式スクリーニング{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-4 border-bottom">
+    <h1 class="h2">
+        <i class="fas fa-filter text-primary me-2"></i>
+        株式スクリーニング
+    </h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        {% if results and has_search %}
+        <div class="btn-group me-2">
+            <a href="{% url 'stock:export_csv' %}?{{ request.GET.urlencode }}" 
+               class="btn btn-success">
+                <i class="fas fa-file-csv me-1"></i>
+                CSV出力
+            </a>
+        </div>
+        {% endif %}
+        <div class="btn-group">
+            <a href="{% url 'stock:dashboard' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-tachometer-alt me-1"></i>
+                ダッシュボード
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- スクリーニングフォーム -->
+<div class="filter-form">
+    <form method="get" id="screening-form">
+        <div class="row align-items-end">
+            <div class="col-12 mb-3">
+                <h5 class="text-primary">
+                    <i class="fas fa-sliders-h me-2"></i>
+                    スクリーニング条件
+                </h5>
+                <p class="text-muted mb-0">条件を指定して該当する銘柄を検索します</p>
+            </div>
+        </div>
+        
+        <!-- 指標条件 -->
+        <div class="row">
+            <div class="col-md-4">
+                <div class="mb-3">
+                    <label class="form-label">
+                        <i class="fas fa-chart-line text-primary me-1"></i>
+                        {{ form.per_max.label }}
+                    </label>
+                    {{ form.per_max }}
+                    <div class="form-text">{{ form.per_max.help_text }}</div>
+                    {% if form.per_max.errors %}
+                        <div class="text-danger small">{{ form.per_max.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="mb-3">
+                    <label class="form-label">
+                        <i class="fas fa-chart-area text-success me-1"></i>
+                        {{ form.pbr_max.label }}
+                    </label>
+                    {{ form.pbr_max }}
+                    <div class="form-text">{{ form.pbr_max.help_text }}</div>
+                    {% if form.pbr_max.errors %}
+                        <div class="text-danger small">{{ form.pbr_max.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="mb-3">
+                    <label class="form-label">
+                        <i class="fas fa-percentage text-warning me-1"></i>
+                        {{ form.dividend_yield_min.label }}
+                    </label>
+                    {{ form.dividend_yield_min }}
+                    <div class="form-text">{{ form.dividend_yield_min.help_text }}</div>
+                    {% if form.dividend_yield_min.errors %}
+                        <div class="text-danger small">{{ form.dividend_yield_min.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- その他条件 -->
+        <div class="row">
+            <div class="col-md-3">
+                <div class="mb-3">
+                    <label class="form-label">
+                        <i class="fas fa-chart-bar text-info me-1"></i>
+                        {{ form.consecutive_profit_years.label }}
+                    </label>
+                    {{ form.consecutive_profit_years }}
+                    <div class="form-text">{{ form.consecutive_profit_years.help_text }}</div>
+                    {% if form.consecutive_profit_years.errors %}
+                        <div class="text-danger small">{{ form.consecutive_profit_years.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="mb-3">
+                    <label class="form-label">
+                        <i class="fas fa-building text-secondary me-1"></i>
+                        {{ form.market.label }}
+                    </label>
+                    {{ form.market }}
+                    <div class="form-text">{{ form.market.help_text }}</div>
+                    {% if form.market.errors %}
+                        <div class="text-danger small">{{ form.market.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="mb-3">
+                    <label class="form-label">
+                        <i class="fas fa-sort text-dark me-1"></i>
+                        {{ form.sort_by.label }}
+                    </label>
+                    {{ form.sort_by }}
+                    {% if form.sort_by.errors %}
+                        <div class="text-danger small">{{ form.sort_by.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="mb-3">
+                    <label class="form-label text-white">.</label>
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary" id="search-btn">
+                            <i class="fas fa-search me-1"></i>
+                            <span class="btn-text">スクリーニング実行</span>
+                            <span class="loading">
+                                <i class="fas fa-spinner fa-spin"></i>
+                                検索中...
+                            </span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- アクションボタン -->
+        <div class="row">
+            <div class="col-12">
+                <div class="d-flex flex-wrap gap-2">
+                    <a href="{% url 'stock:screening' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-eraser me-1"></i>
+                        条件クリア
+                    </a>
+                    <button type="button" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#helpModal">
+                        <i class="fas fa-question-circle me-1"></i>
+                        使い方
+                    </button>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- 結果表示 -->
+{% if has_search %}
+<div class="stats-card">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5>
+            <i class="fas fa-list-alt text-primary me-2"></i>
+            スクリーニング結果
+        </h5>
+        <div class="d-flex align-items-center gap-3">
+            {% if execution_time %}
+            <small class="text-muted">
+                <i class="fas fa-clock me-1"></i>
+                実行時間: {{ execution_time }}秒
+            </small>
+            {% endif %}
+            <span class="badge bg-primary fs-6">{{ total_count }}件</span>
+        </div>
+    </div>
+    
+    {% if results %}
+    <!-- 結果テーブル -->
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th width="8%">
+                        <i class="fas fa-code me-1"></i>
+                        銘柄コード
+                    </th>
+                    <th width="25%">
+                        <i class="fas fa-building me-1"></i>
+                        企業名
+                    </th>
+                    <th width="10%">
+                        <i class="fas fa-tags me-1"></i>
+                        市場区分
+                    </th>
+                    <th width="8%">
+                        <i class="fas fa-chart-line me-1"></i>
+                        PER
+                    </th>
+                    <th width="8%">
+                        <i class="fas fa-chart-area me-1"></i>
+                        PBR
+                    </th>
+                    <th width="10%">
+                        <i class="fas fa-percentage me-1"></i>
+                        配当利回り(%)
+                    </th>
+                    <th width="10%">
+                        <i class="fas fa-yen-sign me-1"></i>
+                        株価(円)
+                    </th>
+                    <th width="8%">
+                        <i class="fas fa-chart-bar me-1"></i>
+                        5年連続増益
+                    </th>
+                    <th width="8%">
+                        <i class="fas fa-calendar me-1"></i>
+                        取得日
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for result in results %}
+                <tr class="table-row-hover">
+                    <td>
+                        <a href="{% url 'stock:stock_detail' stock_code=result.stock.code %}" class="text-decoration-none">
+                            <strong class="text-primary">{{ result.stock.code }}</strong>
+                        </a>
+                    </td>
+                    <td>
+                        <div class="fw-bold">{{ result.stock.name }}</div>
+                        {% if result.stock.sector %}
+                        <small class="text-muted">{{ result.stock.sector }}</small>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if result.stock.market %}
+                        <span class="badge bg-light text-dark">{{ result.stock.market }}</span>
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td class="indicator-value">
+                        {% if result.indicator.per %}
+                            <span class="{% if result.indicator.per < 10 %}text-success{% elif result.indicator.per < 15 %}text-primary{% elif result.indicator.per > 25 %}text-danger{% endif %}">
+                                {{ result.indicator.per|floatformat:1 }}
+                            </span>
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td class="indicator-value">
+                        {% if result.indicator.pbr %}
+                            <span class="{% if result.indicator.pbr < 1 %}text-success{% elif result.indicator.pbr < 1.5 %}text-primary{% elif result.indicator.pbr > 3 %}text-danger{% endif %}">
+                                {{ result.indicator.pbr|floatformat:2 }}
+                            </span>
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td class="indicator-value">
+                        {% if result.indicator.dividend_yield %}
+                            <span class="{% if result.indicator.dividend_yield > 4 %}text-success{% elif result.indicator.dividend_yield > 2 %}text-primary{% endif %}">
+                                {{ result.indicator.dividend_yield|floatformat:2 }}%
+                            </span>
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if result.indicator.price %}
+                            <span class="fw-bold">¥{{ result.indicator.price|floatformat:0 }}</span>
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">
+                        {% if result.is_consecutive_profit %}
+                        <span class="badge badge-profit">
+                            <i class="fas fa-check"></i> あり
+                        </span>
+                        {% else %}
+                        <span class="badge badge-no-profit">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <small class="text-muted">{{ result.indicator.date|date:"Y-m-d" }}</small>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- ページネーション -->
+    {% if results.has_other_pages %}
+    <nav aria-label="検索結果ページネーション" class="mt-4">
+        <ul class="pagination">
+            {% if results.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?{{ request.GET.urlencode }}&page=1">
+                        <i class="fas fa-angle-double-left"></i>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?{{ request.GET.urlencode }}&page={{ results.previous_page_number }}">
+                        <i class="fas fa-angle-left"></i>
+                    </a>
+                </li>
+            {% endif %}
+            
+            {% for num in results.paginator.page_range %}
+                {% if num == results.number %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ num }}</span>
+                    </li>
+                {% elif num > results.number|add:'-3' and num < results.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?{{ request.GET.urlencode }}&page={{ num }}">{{ num }}</a>
+                    </li>
+                {% endif %}
+            {% endfor %}
+            
+            {% if results.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?{{ request.GET.urlencode }}&page={{ results.next_page_number }}">
+                        <i class="fas fa-angle-right"></i>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?{{ request.GET.urlencode }}&page={{ results.paginator.num_pages }}">
+                        <i class="fas fa-angle-double-right"></i>
+                    </a>
+                </li>
+            {% endif %}
+        </ul>
+    </nav>
+    
+    <div class="text-center text-muted mt-2">
+        <small>
+            {{ results.start_index }}-{{ results.end_index }} / {{ total_count }}件 
+            ({{ results.paginator.num_pages }}ページ中 {{ results.number }}ページ目)
+        </small>
+    </div>
+    {% endif %}
+    
+    {% else %}
+    <!-- 結果なし -->
+    <div class="text-center py-5">
+        <i class="fas fa-search text-muted fa-4x"></i>
+        <h4 class="mt-3 text-muted">条件に一致する銘柄が見つかりませんでした</h4>
+        <p class="text-muted">
+            条件を緩和して再度お試しください。<br>
+            または、データ更新が必要な可能性があります。
+        </p>
+        <div class="mt-3">
+            <a href="{% url 'stock:screening' %}" class="btn btn-outline-primary me-2">
+                <i class="fas fa-redo me-1"></i>
+                条件をリセット
+            </a>
+            <a href="{% url 'stock:dashboard' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-tachometer-alt me-1"></i>
+                ダッシュボードに戻る
+            </a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% else %}
+<!-- 初期状態 -->
+<div class="text-center py-5">
+    <div class="stats-card">
+        <i class="fas fa-filter text-primary fa-5x"></i>
+        <h3 class="mt-4 text-primary">スクリーニング条件を設定してください</h3>
+        <p class="text-muted mt-3 mb-4">
+            上記のフォームに条件を入力し、「スクリーニング実行」ボタンをクリックしてください。<br>
+            PER、PBR、配当利回りなどの指標で銘柄を絞り込むことができます。
+        </p>
+        <div class="row mt-4">
+            <div class="col-md-6 mx-auto">
+                <div class="border rounded p-3">
+                    <h6><i class="fas fa-lightbulb text-warning me-1"></i>スクリーニング例</h6>
+                    <ul class="text-start small text-muted mb-0">
+                        <li>割安株を探す: PER 15倍以下、PBR 1倍以下</li>
+                        <li>高配当株を探す: 配当利回り 3%以上</li>
+                        <li>成長株を探す: 5年連続増益</li>
+                        <li>プライム市場の銘柄のみ</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- ヘルプモーダル -->
+<div class="modal fade" id="helpModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-question-circle text-info me-2"></i>
+                    スクリーニング機能の使い方
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-chart-line text-primary me-1"></i>指標の説明</h6>
+                        <ul class="small">
+                            <li><strong>PER</strong>: 株価収益率（低いほど割安）</li>
+                            <li><strong>PBR</strong>: 株価純資産倍率（1倍以下で割安）</li>
+                            <li><strong>配当利回り</strong>: 年間配当/株価（高いほど高配当）</li>
+                            <li><strong>連続増益</strong>: 指定年数連続で純利益が増加</li>
+                        </ul>
+                        
+                        <h6 class="mt-3"><i class="fas fa-target text-success me-1"></i>おすすめ条件例</h6>
+                        <ul class="small">
+                            <li><strong>割安株</strong>: PER ≤ 15, PBR ≤ 1.2</li>
+                            <li><strong>高配当株</strong>: 配当利回り ≥ 3%</li>
+                            <li><strong>成長株</strong>: 5年連続増益</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-exclamation-triangle text-warning me-1"></i>注意事項</h6>
+                        <ul class="small">
+                            <li>データはYahoo Financeから取得</li>
+                            <li>投資判断は必ず自己責任で</li>
+                            <li>最新データは管理コマンドで更新</li>
+                            <li>条件を厳しくしすぎると結果が0件になることがあります</li>
+                        </ul>
+                        
+                        <h6 class="mt-3"><i class="fas fa-keyboard text-info me-1"></i>操作方法</h6>
+                        <ul class="small">
+                            <li>条件を入力して「スクリーニング実行」</li>
+                            <li>結果はCSVでダウンロード可能</li>
+                            <li>「条件クリア」で全ての条件をリセット</li>
+                            <li>並び替えで結果の順序を変更</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">閉じる</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // フォーム送信時のローディング表示
+    document.getElementById('screening-form').addEventListener('submit', function() {
+        const btn = document.getElementById('search-btn');
+        btn.classList.add('disabled');
+        btn.querySelector('.btn-text').style.display = 'none';
+        btn.querySelector('.loading').style.display = 'inline';
+    });
+    
+    // テーブル行のホバー効果
+    document.addEventListener('DOMContentLoaded', function() {
+        const rows = document.querySelectorAll('.table-row-hover');
+        rows.forEach(function(row) {
+            row.addEventListener('mouseenter', function() {
+                this.style.transform = 'scale(1.01)';
+                this.style.transition = 'all 0.2s ease';
+                this.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+            });
+            
+            row.addEventListener('mouseleave', function() {
+                this.style.transform = 'scale(1)';
+                this.style.boxShadow = 'none';
+            });
+        });
+    });
+    
+    // 数値入力フィールドのバリデーション
+    const numberInputs = document.querySelectorAll('input[type="number"]');
+    numberInputs.forEach(function(input) {
+        input.addEventListener('input', function() {
+            if (this.value < 0) {
+                this.value = 0;
+            }
+        });
+    });
+</script>
+{% endblock %}

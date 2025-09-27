@@ -1,0 +1,905 @@
+<!-- stock/templates/stock/stock_detail.html - 最終版 -->
+{% extends 'stock/base.html' %}
+{% load stock_filters %}
+
+{% block title %}{{ stock.code }} - {{ stock.name }} - 詳細分析{% endblock %}
+
+{% block extra_css %}
+<style>
+    .analysis-section {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 25px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        transition: all 0.3s ease;
+    }
+    
+    .analysis-section:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+    }
+    
+    .metric-card {
+        background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+        border: 1px solid #e9ecef;
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+        transition: all 0.3s ease;
+        height: 100%;
+    }
+    
+    .metric-card:hover {
+        border-color: #667eea;
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.15);
+    }
+    
+    .metric-value {
+        font-size: 2.2rem;
+        font-weight: 700;
+        margin: 12px 0;
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    
+    .metric-label {
+        font-size: 0.9rem;
+        color: #6c757d;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .chart-container {
+        position: relative;
+        height: 350px;
+        margin: 20px 0;
+        background: #fafbfc;
+        border-radius: 8px;
+        padding: 10px;
+    }
+    
+    .growth-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin: 3px;
+        transition: all 0.2s ease;
+    }
+    
+    .growth-badge:hover {
+        transform: scale(1.05);
+    }
+    
+    .growth-positive { 
+        background: linear-gradient(135deg, #d4edda, #c3e6cb); 
+        color: #155724;
+        border: 1px solid #c3e6cb;
+    }
+    
+    .growth-negative { 
+        background: linear-gradient(135deg, #f8d7da, #f5c6cb); 
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+    }
+    
+    .growth-neutral { 
+        background: linear-gradient(135deg, #e2e3e5, #d6d8db); 
+        color: #383d41;
+        border: 1px solid #d6d8db;
+    }
+    
+    .section-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #f8f9fa;
+    }
+    
+    .section-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 15px;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        font-size: 1.2rem;
+    }
+    
+    .financial-table {
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 2px 15px rgba(0,0,0,0.05);
+    }
+    
+    .financial-table th {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        font-weight: 600;
+        padding: 15px 12px;
+        border: none;
+    }
+    
+    .financial-table td {
+        padding: 12px;
+        vertical-align: middle;
+        border-color: #f1f3f4;
+    }
+    
+    .trend-indicator {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 8px;
+        border-radius: 15px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+    
+    .trend-up { 
+        background: #d4edda; 
+        color: #155724; 
+    }
+    
+    .trend-down { 
+        background: #f8d7da; 
+        color: #721c24; 
+    }
+    
+    .trend-stable { 
+        background: #e2e3e5; 
+        color: #383d41; 
+    }
+    
+    .comparison-section {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-radius: 12px;
+        padding: 20px;
+        margin: 15px 0;
+    }
+    
+    .comparison-bar {
+        height: 25px;
+        background: #e9ecef;
+        border-radius: 15px;
+        position: relative;
+        margin: 10px 0;
+        overflow: hidden;
+    }
+    
+    .comparison-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #667eea, #764ba2);
+        border-radius: 15px;
+        position: relative;
+        transition: width 0.8s ease;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        padding-right: 10px;
+    }
+    
+    .comparison-value {
+        color: white;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+    
+    .loading-spinner {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid #667eea;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .animate-fade-in {
+        animation: fadeInUp 0.6s ease-out;
+    }
+    
+    .data-highlight {
+        background: linear-gradient(135deg, #fff3cd, #ffeaa7);
+        border-left: 4px solid #ffc107;
+        padding: 10px 15px;
+        border-radius: 5px;
+        margin: 10px 0;
+    }
+    
+    .stock-badge {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 1.1rem;
+    }
+    
+    .analysis-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        margin: 20px 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- ヘッダー部分 -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="display-6 mb-2">
+                <span class="stock-badge">{{ stock.code }}</span>
+                <span class="ms-3">{{ stock.name }}</span>
+            </h1>
+            <div class="d-flex align-items-center">
+                {% if stock.market %}
+                    <span class="badge bg-light text-dark me-2">{{ stock.market }}</span>
+                {% endif %}
+                {% if stock.sector %}
+                    <span class="badge bg-info me-2">{{ stock.sector }}</span>
+                {% endif %}
+                {% if is_consecutive_profit %}
+                    <span class="badge bg-success">
+                        <i class="fas fa-chart-line me-1"></i>5年連続増益
+                    </span>
+                {% endif %}
+            </div>
+        </div>
+        <div>
+            <a href="{% url 'stock:screening' %}" class="btn btn-outline-primary">
+                <i class="fas fa-search me-2"></i>スクリーニングに戻る
+            </a>
+        </div>
+    </div>
+
+    <!-- 最新指標カード -->
+    {% if latest_indicator %}
+    <div class="analysis-section animate-fade-in">
+        <div class="section-header">
+            <div class="section-icon">
+                <i class="fas fa-chart-bar"></i>
+            </div>
+            <div>
+                <h4 class="mb-1">最新指標</h4>
+                <small class="text-muted">{{ latest_indicator.date }} 時点</small>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-3 mb-3">
+                <div class="metric-card">
+                    <div class="metric-label">PER</div>
+                    <div class="metric-value">
+                        {{ latest_indicator.per|floatformat:1|default:"-" }}
+                    </div>
+                    <small class="text-muted">株価収益率</small>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="metric-card">
+                    <div class="metric-label">PBR</div>
+                    <div class="metric-value">
+                        {{ latest_indicator.pbr|floatformat:2|default:"-" }}
+                    </div>
+                    <small class="text-muted">株価純資産倍率</small>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="metric-card">
+                    <div class="metric-label">配当利回り</div>
+                    <div class="metric-value">
+                        {{ latest_indicator.dividend_yield|floatformat:2|default:"-" }}%
+                    </div>
+                    <small class="text-muted">年間配当/株価</small>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="metric-card">
+                    <div class="metric-label">株価</div>
+                    <div class="metric-value text-success">
+                        ¥{{ latest_indicator.price|intcomma|default:"-" }}
+                    </div>
+                    <small class="text-muted">現在価格</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- グラフセクション -->
+    <div class="row">
+        <!-- 財務データグラフ -->
+        {% if chart_data.financial_years %}
+        <div class="col-lg-8 mb-4">
+            <div class="analysis-section animate-fade-in">
+                <div class="section-header">
+                    <div class="section-icon">
+                        <i class="fas fa-chart-area"></i>
+                    </div>
+                    <div>
+                        <h4 class="mb-1">財務データ推移</h4>
+                        <small class="text-muted">過去{{ chart_data.financial_years|length }}年間の業績</small>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="financialChart"></canvas>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- 成長率分析 -->
+        {% if financial_analysis.growth_rates %}
+        <div class="col-lg-4 mb-4">
+            <div class="analysis-section animate-fade-in">
+                <div class="section-header">
+                    <div class="section-icon">
+                        <i class="fas fa-trending-up"></i>
+                    </div>
+                    <div>
+                        <h4 class="mb-1">成長率分析</h4>
+                        <small class="text-muted">前年同期比</small>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead class="table-light">
+                            <tr>
+                                <th>年度</th>
+                                <th>売上成長率</th>
+                                <th>利益成長率</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for growth in financial_analysis.growth_rates|slice:":5" %}
+                            <tr>
+                                <td><strong>{{ growth.year }}</strong></td>
+                                <td>
+                                    {% if growth.revenue_growth %}
+                                        <span class="growth-badge {% if growth.revenue_growth > 0 %}growth-positive{% elif growth.revenue_growth < 0 %}growth-negative{% else %}growth-neutral{% endif %}">
+                                            {% if growth.revenue_growth > 0 %}+{% endif %}{{ growth.revenue_growth|floatformat:1 }}%
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if growth.profit_growth %}
+                                        <span class="growth-badge {% if growth.profit_growth > 0 %}growth-positive{% elif growth.profit_growth < 0 %}growth-negative{% else %}growth-neutral{% endif %}">
+                                            {% if growth.profit_growth > 0 %}+{% endif %}{{ growth.profit_growth|floatformat:1 }}%
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- 株価推移グラフ -->
+    {% if chart_data.prices %}
+    <div class="analysis-section animate-fade-in">
+        <div class="section-header">
+            <div class="section-icon">
+                <i class="fas fa-chart-line"></i>
+            </div>
+            <div>
+                <h4 class="mb-1">株価推移</h4>
+                <small class="text-muted">過去{{ chart_data.prices|length }}日間の価格動向</small>
+            </div>
+        </div>
+        <div class="chart-container">
+            <canvas id="priceChart"></canvas>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- 財務データテーブル -->
+    {% if financials %}
+    <div class="analysis-section animate-fade-in">
+        <div class="section-header">
+            <div class="section-icon">
+                <i class="fas fa-table"></i>
+            </div>
+            <div>
+                <h4 class="mb-1">財務データ詳細</h4>
+                <small class="text-muted">過去{{ financials|length }}年間の財務実績</small>
+            </div>
+        </div>
+        
+        <div class="table-responsive">
+            <table class="table financial-table">
+                <thead>
+                    <tr>
+                        <th>年度</th>
+                        <th>売上高</th>
+                        <th>純利益</th>
+                        <th>EPS</th>
+                        <th>売上成長率</th>
+                        <th>利益成長率</th>
+                        <th>純利益率</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for financial in financials %}
+                    <tr>
+                        <td class="fw-bold">{{ financial.year }}年</td>
+                        <td>
+                            {% if financial.revenue %}
+                                <strong>{{ financial.revenue|format_large_number }}</strong>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if financial.net_income %}
+                                <strong class="{% if financial.net_income > 0 %}text-success{% else %}text-danger{% endif %}">
+                                    {{ financial.net_income|format_large_number }}
+                                </strong>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if financial.eps %}
+                                {{ financial.eps|floatcomma:2 }}円
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% for growth in financial_analysis.growth_rates %}
+                                {% if growth.year == financial.year and growth.revenue_growth %}
+                                    <span class="trend-indicator {% if growth.revenue_growth > 0 %}trend-up{% elif growth.revenue_growth < 0 %}trend-down{% else %}trend-stable{% endif %}">
+                                        {% if growth.revenue_growth > 0 %}
+                                            <i class="fas fa-arrow-up me-1"></i>+
+                                        {% elif growth.revenue_growth < 0 %}
+                                            <i class="fas fa-arrow-down me-1"></i>
+                                        {% endif %}
+                                        {{ growth.revenue_growth|floatformat:1 }}%
+                                    </span>
+                                {% endif %}
+                            {% empty %}
+                                <span class="text-muted">-</span>
+                            {% endfor %}
+                        </td>
+                        <td>
+                            {% for growth in financial_analysis.growth_rates %}
+                                {% if growth.year == financial.year and growth.profit_growth %}
+                                    <span class="trend-indicator {% if growth.profit_growth > 0 %}trend-up{% elif growth.profit_growth < 0 %}trend-down{% else %}trend-stable{% endif %}">
+                                        {% if growth.profit_growth > 0 %}
+                                            <i class="fas fa-arrow-up me-1"></i>+
+                                        {% elif growth.profit_growth < 0 %}
+                                            <i class="fas fa-arrow-down me-1"></i>
+                                        {% endif %}
+                                        {{ growth.profit_growth|floatformat:1 }}%
+                                    </span>
+                                {% endif %}
+                            {% empty %}
+                                <span class="text-muted">-</span>
+                            {% endfor %}
+                        </td>
+                        <td>
+                            {% if financial.revenue and financial.net_income and financial.revenue != 0 %}
+                                {% with margin=financial.net_income|safe_divide:financial.revenue|multiply:100 %}
+                                    {% if margin %}
+                                        <span class="{% if margin > 10 %}text-success{% elif margin > 5 %}text-primary{% elif margin > 0 %}text-warning{% else %}text-danger{% endif %}">
+                                            {{ margin|floatformat:1 }}%
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                {% endwith %}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- 投資指標サマリー -->
+    <div class="analysis-section animate-fade-in">
+        <div class="section-header">
+            <div class="section-icon">
+                <i class="fas fa-calculator"></i>
+            </div>
+            <div>
+                <h4 class="mb-1">投資指標サマリー</h4>
+                <small class="text-muted">投資判断の参考指標</small>
+            </div>
+        </div>
+        
+        <div class="analysis-grid">
+            <div class="comparison-section">
+                <h6 class="mb-3"><i class="fas fa-chart-pie me-2"></i>バリュエーション</h6>
+                {% if latest_indicator.per %}
+                <div class="mb-2">
+                    <small class="text-muted">PER評価</small>
+                    <div class="comparison-bar">
+                        <div class="comparison-fill" style="width: {% if latest_indicator.per < 15 %}70{% elif latest_indicator.per < 25 %}50{% else %}30{% endif %}%">
+                            <span class="comparison-value">
+                                {% if latest_indicator.per < 15 %}割安{% elif latest_indicator.per < 25 %}適正{% else %}割高{% endif %}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if latest_indicator.pbr %}
+                <div class="mb-2">
+                    <small class="text-muted">PBR評価</small>
+                    <div class="comparison-bar">
+                        <div class="comparison-fill" style="width: {% if latest_indicator.pbr < 1 %}80{% elif latest_indicator.pbr < 2 %}60{% else %}40{% endif %}%">
+                            <span class="comparison-value">
+                                {% if latest_indicator.pbr < 1 %}割安{% elif latest_indicator.pbr < 2 %}適正{% else %}割高{% endif %}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            
+            <div class="comparison-section">
+                <h6 class="mb-3"><i class="fas fa-coins me-2"></i>収益性</h6>
+                {% if latest_indicator.dividend_yield %}
+                <div class="mb-2">
+                    <small class="text-muted">配当利回り</small>
+                    <div class="comparison-bar">
+                        <div class="comparison-fill" style="width: {% if latest_indicator.dividend_yield > 4 %}90{% elif latest_indicator.dividend_yield > 2 %}70{% else %}50{% endif %}%">
+                            <span class="comparison-value">
+                                {% if latest_indicator.dividend_yield > 4 %}高配当{% elif latest_indicator.dividend_yield > 2 %}中配当{% else %}低配当{% endif %}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <div class="mb-2">
+                    <small class="text-muted">成長性</small>
+                    <div class="comparison-bar">
+                        <div class="comparison-fill" style="width: {% if is_consecutive_profit %}85{% else %}40{% endif %}%">
+                            <span class="comparison-value">
+                                {% if is_consecutive_profit %}成長企業{% else %}要確認{% endif %}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="comparison-section">
+                <h6 class="mb-3"><i class="fas fa-info-circle me-2"></i>データ品質</h6>
+                <div class="mb-2">
+                    <small class="text-muted">財務データ充実度</small>
+                    <div class="comparison-bar">
+                        <div class="comparison-fill" style="width: {% if financials|length > 5 %}90{% elif financials|length > 3 %}70{% else %}50{% endif %}%">
+                            <span class="comparison-value">
+                                {{ financials|length }}年分
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-2">
+                    <small class="text-muted">指標データ</small>
+                    <div class="comparison-bar">
+                        <div class="comparison-fill" style="width: {% if latest_indicator %}100{% else %}0{% endif %}%">
+                            <span class="comparison-value">
+                                {% if latest_indicator %}最新{% else %}なし{% endif %}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- データ更新情報 -->
+    <div class="data-highlight">
+        <div class="d-flex align-items-center">
+            <i class="fas fa-info-circle me-2"></i>
+            <div>
+                <strong>データ更新情報:</strong> 
+                指標データ: {% if latest_indicator %}{{ latest_indicator.date }}{% else %}未取得{% endif %} | 
+                財務データ: {{ financials|length }}年分 | 
+                最終更新: {{ stock.updated_at|date:"Y-m-d H:i" }}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Chart.js設定
+Chart.defaults.font.family = 'system-ui, -apple-system, sans-serif';
+Chart.defaults.font.size = 13;
+Chart.defaults.color = '#495057';
+
+// 共通のチャートオプション
+const commonOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+        legend: {
+            display: true,
+            position: 'top',
+            labels: {
+                usePointStyle: true,
+                padding: 20,
+                font: { size: 12, weight: '600' }
+            }
+        },
+        tooltip: {
+            backgroundColor: 'rgba(0,0,0,0.8)',
+            titleColor: '#fff',
+            bodyColor: '#fff',
+            borderColor: '#667eea',
+            borderWidth: 1,
+            cornerRadius: 8,
+            padding: 12,
+            titleFont: { size: 14, weight: '600' },
+            bodyFont: { size: 13 }
+        }
+    },
+    interaction: {
+        mode: 'index',
+        intersect: false,
+    },
+    elements: {
+        line: {
+            tension: 0.2
+        },
+        point: {
+            radius: 6,
+            hoverRadius: 8,
+            borderWidth: 2
+        }
+    }
+};
+
+// 財務データチャート
+{% if chart_data.financial_years %}
+const financialCtx = document.getElementById('financialChart').getContext('2d');
+new Chart(financialCtx, {
+    type: 'line',
+    data: {
+        labels: {{ chart_data.financial_years|safe }},
+        datasets: [{
+            label: '売上高 (百万円)',
+            data: {{ chart_data.revenues|safe }},
+            borderColor: '#667eea',
+            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+            borderWidth: 3,
+            fill: true,
+            yAxisID: 'y'
+        }, {
+            label: '純利益 (百万円)',
+            data: {{ chart_data.net_incomes|safe }},
+            borderColor: '#764ba2',
+            backgroundColor: 'rgba(118, 75, 162, 0.1)',
+            borderWidth: 3,
+            fill: true,
+            yAxisID: 'y1'
+        }]
+    },
+    options: {
+        ...commonOptions,
+        scales: {
+            x: {
+                title: {
+                    display: true,
+                    text: '年度',
+                    font: { size: 14, weight: '600' }
+                },
+                grid: {
+                    color: 'rgba(0,0,0,0.05)'
+                }
+            },
+            y: {
+                type: 'linear',
+                display: true,
+                position: 'left',
+                title: {
+                    display: true,
+                    text: '売上高 (百万円)',
+                    font: { size: 12, weight: '600' }
+                },
+                ticks: {
+                    callback: function(value) {
+                        return (value / 1000000).toFixed(1) + '兆';
+                    }
+                },
+                grid: {
+                    color: 'rgba(102, 126, 234, 0.1)'
+                }
+            },
+            y1: {
+                type: 'linear',
+                display: true,
+                position: 'right',
+                title: {
+                    display: true,
+                    text: '純利益 (百万円)',
+                    font: { size: 12, weight: '600' }
+                },
+                grid: {
+                    drawOnChartArea: false,
+                    color: 'rgba(118, 75, 162, 0.1)'
+                },
+                ticks: {
+                    callback: function(value) {
+                        return (value / 100000).toFixed(0) + '億';
+                    }
+                }
+            }
+        },
+        plugins: {
+            ...commonOptions.plugins,
+            tooltip: {
+                ...commonOptions.plugins.tooltip,
+                callbacks: {
+                    label: function(context) {
+                        const value = context.parsed.y;
+                        const unit = context.dataset.label.includes('売上') ? 
+                            (value / 1000000).toFixed(1) + '兆円' : 
+                            (value / 100000).toFixed(0) + '億円';
+                        return context.dataset.label + ': ' + unit;
+                    }
+                }
+            }
+        }
+    }
+});
+{% endif %}
+
+// 株価チャート
+{% if chart_data.prices %}
+const priceCtx = document.getElementById('priceChart').getContext('2d');
+new Chart(priceCtx, {
+    type: 'line',
+    data: {
+        labels: {{ chart_data.indicator_dates|safe }},
+        datasets: [{
+            label: '株価 (円)',
+            data: {{ chart_data.prices|safe }},
+            borderColor: '#28a745',
+            backgroundColor: 'rgba(40, 167, 69, 0.1)',
+            borderWidth: 3,
+            fill: true,
+            pointBackgroundColor: '#28a745',
+            pointBorderColor: '#ffffff',
+        }]
+    },
+    options: {
+        ...commonOptions,
+        scales: {
+            x: {
+                title: {
+                    display: true,
+                    text: '日付',
+                    font: { size: 14, weight: '600' }
+                },
+                grid: {
+                    color: 'rgba(0,0,0,0.05)'
+                }
+            },
+            y: {
+                title: {
+                    display: true,
+                    text: '株価 (円)',
+                    font: { size: 14, weight: '600' }
+                },
+                ticks: {
+                    callback: function(value) {
+                        return '¥' + value.toLocaleString();
+                    }
+                },
+                grid: {
+                    color: 'rgba(40, 167, 69, 0.1)'
+                }
+            }
+        },
+        plugins: {
+            ...commonOptions.plugins,
+            tooltip: {
+                ...commonOptions.plugins.tooltip,
+                callbacks: {
+                    label: function(context) {
+                        return '株価: ¥' + context.parsed.y.toLocaleString();
+                    }
+                }
+            }
+        }
+    }
+});
+{% endif %}
+
+// アニメーション効果
+document.addEventListener('DOMContentLoaded', function() {
+    // フェードインアニメーション
+    const observerOptions = {
+        threshold: 0.1,
+        rootMargin: '0px 0px -50px 0px'
+    };
+    
+    const observer = new IntersectionObserver(function(entries) {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.style.opacity = '1';
+                entry.target.style.transform = 'translateY(0)';
+            }
+        });
+    }, observerOptions);
+    
+    document.querySelectorAll('.animate-fade-in').forEach(el => {
+        el.style.opacity = '0';
+        el.style.transform = 'translateY(30px)';
+        el.style.transition = 'all 0.6s ease-out';
+        observer.observe(el);
+    });
+    
+    // 比較バーのアニメーション
+    setTimeout(() => {
+        document.querySelectorAll('.comparison-fill').forEach(bar => {
+            const width = bar.style.width;
+            bar.style.width = '0%';
+            setTimeout(() => {
+                bar.style.width = width;
+            }, 200);
+        });
+    }, 500);
+});
+
+// デバッグ情報
+console.log('Stock Detail Page Loaded:', {
+    stock: '{{ stock.code }}',
+    hasFinancials: {{ financials|length }},
+    hasIndicators: {% if latest_indicator %}true{% else %}false{% endif %},
+    chartData: {
+        financialYears: {{ chart_data.financial_years|length }},
+        prices: {{ chart_data.prices|length }}
+    }
+});
+</script>
+{% endblock %}
