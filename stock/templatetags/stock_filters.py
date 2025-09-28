@@ -132,3 +132,106 @@ def comparison_color(stock_value, industry_value):
 
 # stock/templatetags/__init__.py
 # 空ファイル（必須）
+
+@register.filter
+def widthof(value):
+    """銘柄数に応じたテーブル幅の計算"""
+    try:
+        count = int(value)
+        if count == 2:
+            return 40
+        elif count == 3:
+            return 26
+        elif count == 4:
+            return 20
+        else:
+            return 15
+    except (ValueError, TypeError):
+        return 15
+
+@register.filter 
+def stock_count_class(value):
+    """銘柄数に応じたCSSクラス"""
+    try:
+        count = int(value)
+        return f"stock-count-{count}"
+    except (ValueError, TypeError):
+        return "stock-count-default"
+
+@register.filter
+def color_by_index(index):
+    """インデックスに応じた色を返す"""
+    colors = ['#667eea', '#764ba2', '#28a745', '#dc3545', '#ffc107', '#17a2b8', '#6f42c1', '#e83e8c']
+    try:
+        return colors[int(index) % len(colors)]
+    except (ValueError, TypeError, IndexError):
+        return '#667eea'
+
+@register.filter
+def metric_status(value, metric_type):
+    """指標の状態を評価"""
+    if value is None:
+        return "unknown"
+    
+    try:
+        val = float(value)
+        
+        if metric_type == 'per':
+            if val < 10:
+                return "excellent"
+            elif val < 15:
+                return "good"
+            elif val < 25:
+                return "average"
+            else:
+                return "poor"
+        elif metric_type == 'pbr':
+            if val < 1:
+                return "excellent"
+            elif val < 1.5:
+                return "good"
+            elif val < 3:
+                return "average"
+            else:
+                return "poor"
+        elif metric_type == 'roe':
+            if val > 20:
+                return "excellent"
+            elif val > 15:
+                return "good"
+            elif val > 10:
+                return "average"
+            else:
+                return "poor"
+        elif metric_type == 'dividend':
+            if val > 4:
+                return "excellent"
+            elif val > 2:
+                return "good"
+            elif val > 1:
+                return "average"
+            else:
+                return "poor"
+    except (ValueError, TypeError):
+        pass
+    
+    return "unknown"
+
+@register.filter
+def score_class(score):
+    """スコアに応じたCSSクラス"""
+    try:
+        val = float(score)
+        if val >= 20:
+            return "score-excellent"
+        elif val >= 15:
+            return "score-good"
+        elif val >= 8:
+            return "score-average"
+        else:
+            return "score-poor"
+    except (ValueError, TypeError):
+        return "score-poor"
+
+# stock/templatetags/__init__.py
+# 空ファイル（必須）

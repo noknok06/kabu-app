@@ -1160,3 +1160,510 @@ def export_csv(request):
     writer.writerow(['検索条件', str(form.get_search_summary() if hasattr(form, 'get_search_summary') else '高度検索')])
     
     return response
+
+# stock/views.py - 比較機能追加分
+
+def comparison_view(request):
+    """銘柄比較ビュー"""
+    stock_codes_param = request.GET.get('stocks', '')
+    
+    if not stock_codes_param:
+        messages.error(request, '比較する銘柄が指定されていません。')
+        return redirect('stock:screening')
+    
+    # 銘柄コードをパース
+    stock_codes = [code.strip().upper() for code in stock_codes_param.split(',') if code.strip()]
+    
+    if not stock_codes:
+        messages.error(request, '有効な銘柄コードが指定されていません。')
+        return redirect('stock:screening')
+    
+    # 銘柄数の上限チェック（推奨は10銘柄まで）
+    if len(stock_codes) > 20:
+        messages.warning(request, f'比較銘柄数が多すぎます（{len(stock_codes)}銘柄）。パフォーマンスのため上位20銘柄のみ表示します。')
+        stock_codes = stock_codes[:20]
+    
+    try:
+        # 銘柄データを取得
+        stocks_data = []
+        missing_stocks = []
+        
+        for stock_code in stock_codes:
+            try:
+                stock = Stock.objects.get(code=stock_code)
+                
+                # 最新の指標データ
+                latest_indicator = stock.indicators.order_by('-date').first()
+                if not latest_indicator:
+                    logger.warning(f"銘柄 {stock_code} の指標データが見つかりません")
+                    missing_stocks.append(stock_code)
+                    continue
+                
+                # 高度指標データ
+                latest_advanced = stock.advanced_indicators.order_by('-date').first()
+                
+                # 財務データ（過去5年）
+                financials = list(stock.financials.order_by('-year')[:5])
+                
+                # スコア計算
+                stock_scores = calculate_stock_scores_complete(stock, latest_indicator, latest_advanced, financials)
+                
+                if stock_scores:
+                    # 追加分析データ
+                    additional_data = calculate_additional_metrics(stock, financials, latest_advanced)
+                    stock_scores.update(additional_data)
+                    stocks_data.append(stock_scores)
+                
+            except Stock.DoesNotExist:
+                missing_stocks.append(stock_code)
+                continue
+            except Exception as e:
+                logger.error(f"銘柄 {stock_code} データ取得エラー: {e}")
+                missing_stocks.append(stock_code)
+                continue
+        
+        # 存在しない銘柄についてメッセージ表示
+        if missing_stocks:
+            messages.warning(request, f'以下の銘柄が見つからないか、データが不足しています: {", ".join(missing_stocks)}')
+        
+        if not stocks_data:
+            messages.error(request, '比較可能な銘柄データがありません。')
+            return redirect('stock:screening')
+        
+        # 比較分析の実行
+        comparison_analysis = perform_comparison_analysis(stocks_data)
+        
+        # 最優秀銘柄の特定
+        best_stock = max(stocks_data, key=lambda x: x['total_score'])
+        
+        # 投資推奨の生成
+        investment_recommendations = generate_investment_recommendations(stocks_data)
+        
+        # 業界ベンチマークとの比較
+        industry_benchmarks = get_industry_benchmarks(stocks_data)
+        
+        context = {
+            'stocks': stocks_data,
+            'stock_codes': ','.join([s['stock'].code for s in stocks_data]),
+            'comparison_analysis': comparison_analysis,
+            'best_stock': best_stock,
+            'investment_recommendations': investment_recommendations,
+            'industry_benchmarks': industry_benchmarks,
+            'last_update': timezone.now(),
+            'total_stocks_compared': len(stocks_data),
+        }
+        
+        return render(request, 'stock/comparison.html', context)
+        
+    except Exception as e:
+        logger.error(f"比較分析エラー: {e}")
+        messages.error(request, f'比較分析中にエラーが発生しました: {str(e)}')
+        return redirect('stock:screening')
+
+def calculate_additional_metrics(stock, financials, advanced):
+    """追加の分析メトリクス計算"""
+    additional_data = {}
+    
+    try:
+        # 成長率計算
+        if len(financials) >= 2:
+            latest = financials[0]
+            previous = financials[1]
+            
+            # 売上成長率
+            if latest.revenue and previous.revenue and previous.revenue > 0:
+                revenue_growth = ((latest.revenue - previous.revenue) / previous.revenue) * 100
+                additional_data['revenue_growth'] = round(revenue_growth, 1)
+            
+            # 利益成長率
+            if latest.net_income and previous.net_income and previous.net_income > 0:
+                profit_growth = ((latest.net_income - previous.net_income) / previous.net_income) * 100
+                additional_data['profit_growth'] = round(profit_growth, 1)
+        
+        # 連続増益年数
+        consecutive_years = calculate_consecutive_profit_years(financials)
+        additional_data['consecutive_years'] = consecutive_years
+        
+        # 高度指標から追加データ
+        if advanced:
+            additional_data.update({
+                'equity_ratio': advanced.equity_ratio,
+                'current_ratio': advanced.current_ratio,
+                'debt_ratio': advanced.debt_equity_ratio,
+                'operating_margin': advanced.operating_margin,
+                'net_margin': advanced.net_margin,
+            })
+        
+        # 最新財務データ
+        if financials:
+            additional_data['latest_financial'] = financials[0]
+        
+        return additional_data
+        
+    except Exception as e:
+        logger.error(f"追加メトリクス計算エラー {stock.code}: {e}")
+        return {}
+
+def calculate_consecutive_profit_years(financials):
+    """連続増益年数の計算"""
+    if len(financials) < 2:
+        return 0
+    
+    consecutive_years = 0
+    sorted_financials = sorted(financials, key=lambda x: x.year, reverse=True)
+    
+    for i in range(len(sorted_financials) - 1):
+        current = sorted_financials[i]
+        previous = sorted_financials[i + 1]
+        
+        if (current.net_income and previous.net_income and 
+            current.net_income > previous.net_income):
+            consecutive_years += 1
+        else:
+            break
+    
+    return consecutive_years
+
+def perform_comparison_analysis(stocks_data):
+    """比較分析の実行"""
+    analysis = {
+        'best_performers': {},
+        'correlations': {},
+        'risk_analysis': {},
+        'summary': {}
+    }
+    
+    try:
+        # 各指標での最優秀銘柄を特定
+        metrics = ['per', 'pbr', 'roe', 'roa', 'dividend_yield', 'total_score']
+        
+        for metric in metrics:
+            values = []
+            for stock_data in stocks_data:
+                if metric == 'total_score':
+                    value = stock_data.get('total_score', 0)
+                elif metric in ['roe', 'roa']:
+                    value = stock_data.get(metric, 0) or 0
+                elif metric == 'dividend_yield':
+                    value = float(stock_data['indicator'].dividend_yield or 0)
+                else:
+                    indicator_value = getattr(stock_data['indicator'], metric, None)
+                    value = float(indicator_value) if indicator_value else 0
+                
+                values.append({
+                    'stock_code': stock_data['stock'].code,
+                    'value': value
+                })
+            
+            # 指標に応じてソート（低い方が良い指標と高い方が良い指標）
+            if metric in ['per', 'pbr']:
+                # 低い方が良い
+                best = min(values, key=lambda x: x['value'] if x['value'] > 0 else float('inf'))
+            else:
+                # 高い方が良い
+                best = max(values, key=lambda x: x['value'])
+            
+            analysis['best_performers'][metric] = best
+        
+        # リスク分析
+        per_values = [float(s['indicator'].per or 0) for s in stocks_data if s['indicator'].per]
+        roe_values = [float(s.get('roe', 0) or 0) for s in stocks_data]
+        
+        if per_values:
+            analysis['risk_analysis']['per_volatility'] = np.std(per_values)
+            analysis['risk_analysis']['avg_per'] = np.mean(per_values)
+        
+        if roe_values:
+            analysis['risk_analysis']['roe_volatility'] = np.std(roe_values)
+            analysis['risk_analysis']['avg_roe'] = np.mean(roe_values)
+        
+        # サマリー統計
+        total_scores = [s['total_score'] for s in stocks_data]
+        analysis['summary'] = {
+            'avg_total_score': round(np.mean(total_scores), 1),
+            'best_total_score': max(total_scores),
+            'worst_total_score': min(total_scores),
+            'score_range': max(total_scores) - min(total_scores)
+        }
+        
+    except Exception as e:
+        logger.error(f"比較分析エラー: {e}")
+    
+    return analysis
+
+def generate_investment_recommendations(stocks_data):
+    """投資推奨の生成"""
+    recommendations = []
+    
+    try:
+        # 総合スコアでソート
+        sorted_stocks = sorted(stocks_data, key=lambda x: x['total_score'], reverse=True)
+        
+        best_stock = sorted_stocks[0]
+        worst_stock = sorted_stocks[-1]
+        
+        # トップ銘柄の推奨
+        recommendations.append({
+            'title': f'最優秀銘柄: {best_stock["stock"].code}',
+            'description': f'総合スコア{best_stock["total_score"]}で最高評価。バランスの取れた投資候補です。',
+            'risk_level': 'low',
+            'stock_code': best_stock['stock'].code
+        })
+        
+        # リスク警告
+        if worst_stock['total_score'] < 40:
+            recommendations.append({
+                'title': f'注意銘柄: {worst_stock["stock"].code}',
+                'description': f'総合スコア{worst_stock["total_score"]}と低く、慎重な検討が必要です。',
+                'risk_level': 'high',
+                'stock_code': worst_stock['stock'].code
+            })
+        
+        # 高配当銘柄の特定
+        high_dividend_stocks = [s for s in stocks_data 
+                              if s['indicator'].dividend_yield and float(s['indicator'].dividend_yield) > 4]
+        
+        if high_dividend_stocks:
+            best_dividend = max(high_dividend_stocks, 
+                              key=lambda x: float(x['indicator'].dividend_yield))
+            recommendations.append({
+                'title': f'高配当銘柄: {best_dividend["stock"].code}',
+                'description': f'配当利回り{best_dividend["indicator"].dividend_yield}%の高配当株です。',
+                'risk_level': 'medium',
+                'stock_code': best_dividend['stock'].code
+            })
+        
+        # 成長株の特定
+        growth_stocks = [s for s in stocks_data if s.get('roe', 0) and float(s['roe']) > 20]
+        
+        if growth_stocks:
+            best_growth = max(growth_stocks, key=lambda x: float(x.get('roe', 0)))
+            recommendations.append({
+                'title': f'高成長銘柄: {best_growth["stock"].code}',
+                'description': f'ROE{best_growth["roe"]}%の高収益企業で成長性に期待。',
+                'risk_level': 'medium',
+                'stock_code': best_growth['stock'].code
+            })
+        
+        # バリュー株の特定
+        value_stocks = [s for s in stocks_data 
+                       if s['indicator'].per and s['indicator'].pbr and 
+                       float(s['indicator'].per) < 15 and float(s['indicator'].pbr) < 1.5]
+        
+        if value_stocks:
+            best_value = min(value_stocks, 
+                           key=lambda x: float(x['indicator'].per) + float(x['indicator'].pbr))
+            recommendations.append({
+                'title': f'バリュー銘柄: {best_value["stock"].code}',
+                'description': f'PER{best_value["indicator"].per}、PBR{best_value["indicator"].pbr}の割安株です。',
+                'risk_level': 'low',
+                'stock_code': best_value['stock'].code
+            })
+        
+    except Exception as e:
+        logger.error(f"投資推奨生成エラー: {e}")
+    
+    return recommendations
+
+def get_industry_benchmarks(stocks_data):
+    """業界ベンチマークとの比較"""
+    benchmarks = {}
+    
+    try:
+        # 各銘柄の業種を取得
+        sectors = list(set([s['stock'].sector for s in stocks_data if s['stock'].sector]))
+        
+        for sector in sectors:
+            # 業界平均の計算
+            sector_stocks = Stock.objects.filter(sector=sector)
+            
+            # 最新の指標データから業界平均を計算
+            latest_date = Indicator.objects.aggregate(Max('date'))['date__max']
+            if latest_date:
+                sector_indicators = Indicator.objects.filter(
+                    stock__in=sector_stocks,
+                    date=latest_date
+                ).aggregate(
+                    avg_per=Avg('per'),
+                    avg_pbr=Avg('pbr'),
+                    avg_dividend=Avg('dividend_yield')
+                )
+                
+                # 高度指標の業界平均
+                latest_advanced_date = AdvancedIndicator.objects.aggregate(Max('date'))['date__max']
+                sector_advanced = {}
+                if latest_advanced_date:
+                    sector_advanced = AdvancedIndicator.objects.filter(
+                        stock__in=sector_stocks,
+                        date=latest_advanced_date
+                    ).aggregate(
+                        avg_roe=Avg('roe'),
+                        avg_roa=Avg('roa'),
+                        avg_equity_ratio=Avg('equity_ratio')
+                    )
+                
+                benchmarks[sector] = {
+                    'count': sector_stocks.count(),
+                    'avg_per': sector_indicators['avg_per'],
+                    'avg_pbr': sector_indicators['avg_pbr'],
+                    'avg_dividend': sector_indicators['avg_dividend'],
+                    'avg_roe': sector_advanced.get('avg_roe'),
+                    'avg_roa': sector_advanced.get('avg_roa'),
+                    'avg_equity_ratio': sector_advanced.get('avg_equity_ratio'),
+                }
+        
+    except Exception as e:
+        logger.error(f"業界ベンチマーク取得エラー: {e}")
+    
+    return benchmarks
+
+def comparison_export_csv(request):
+    """比較結果のCSV出力"""
+    stock_codes_param = request.GET.get('stocks', '')
+    
+    if not stock_codes_param:
+        return HttpResponse('銘柄が指定されていません', status=400)
+    
+    stock_codes = [code.strip().upper() for code in stock_codes_param.split(',')]
+    
+    # タイムスタンプ付きファイル名
+    timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
+    filename = f'stock_comparison_{timestamp}.csv'
+    
+    response = HttpResponse(content_type='text/csv; charset=utf-8')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    response.write('\ufeff')  # BOM for Excel
+    
+    writer = csv.writer(response)
+    
+    try:
+        # ヘッダー行
+        headers = [
+            '銘柄コード', '企業名', '市場区分', '業種',
+            'PER', 'PBR', '配当利回り(%)', '株価(円)', '時価総額(億円)',
+            'ROE(%)', 'ROA(%)', 'ROIC(%)',
+            '自己資本比率(%)', '流動比率', 'D/Eレシオ',
+            '営業利益率(%)', '純利益率(%)',
+            '売上成長率(%)', '利益成長率(%)', '連続増益年数',
+            'バリュエーションスコア', '収益性スコア', '成長性スコア', '安全性スコア', '総合スコア',
+            '最新売上高(億円)', '最新営業利益(億円)', '最新純利益(億円)',
+            'データ取得日'
+        ]
+        writer.writerow(headers)
+        
+        # データ行
+        for stock_code in stock_codes:
+            try:
+                stock = Stock.objects.get(code=stock_code)
+                latest_indicator = stock.indicators.order_by('-date').first()
+                latest_advanced = stock.advanced_indicators.order_by('-date').first()
+                latest_financial = stock.financials.order_by('-year').first()
+                
+                if not latest_indicator:
+                    continue
+                
+                # 追加メトリクス計算
+                financials = list(stock.financials.order_by('-year')[:5])
+                additional_data = calculate_additional_metrics(stock, financials, latest_advanced)
+                
+                row = [
+                    stock.code,
+                    stock.name,
+                    stock.market or '-',
+                    stock.sector or '-',
+                    f"{latest_indicator.per:.1f}" if latest_indicator.per else '-',
+                    f"{latest_indicator.pbr:.2f}" if latest_indicator.pbr else '-',
+                    f"{latest_indicator.dividend_yield:.2f}" if latest_indicator.dividend_yield else '-',
+                    f"{latest_indicator.price:.0f}" if latest_indicator.price else '-',
+                    f"{latest_indicator.market_cap/100000000:.0f}" if latest_indicator.market_cap else '-',
+                    f"{latest_advanced.roe:.1f}" if latest_advanced and latest_advanced.roe else '-',
+                    f"{latest_advanced.roa:.1f}" if latest_advanced and latest_advanced.roa else '-',
+                    f"{latest_advanced.roic:.1f}" if latest_advanced and latest_advanced.roic else '-',
+                    f"{latest_advanced.equity_ratio:.1f}" if latest_advanced and latest_advanced.equity_ratio else '-',
+                    f"{latest_advanced.current_ratio:.2f}" if latest_advanced and latest_advanced.current_ratio else '-',
+                    f"{latest_advanced.debt_equity_ratio:.2f}" if latest_advanced and latest_advanced.debt_equity_ratio else '-',
+                    f"{latest_advanced.operating_margin:.1f}" if latest_advanced and latest_advanced.operating_margin else '-',
+                    f"{latest_advanced.net_margin:.1f}" if latest_advanced and latest_advanced.net_margin else '-',
+                    f"{additional_data.get('revenue_growth', '')}" if additional_data.get('revenue_growth') else '-',
+                    f"{additional_data.get('profit_growth', '')}" if additional_data.get('profit_growth') else '-',
+                    additional_data.get('consecutive_years', 0),
+                    # スコア計算
+                    calculate_valuation_score(latest_indicator),
+                    calculate_profitability_score(latest_advanced),
+                    calculate_growth_score(financials),
+                    calculate_safety_score(latest_advanced),
+                    # 総合スコア
+                    (calculate_valuation_score(latest_indicator) + 
+                     calculate_profitability_score(latest_advanced) + 
+                     calculate_growth_score(financials) + 
+                     calculate_safety_score(latest_advanced)),
+                    f"{latest_financial.revenue/100000000:.0f}" if latest_financial and latest_financial.revenue else '-',
+                    f"{latest_financial.operating_income/100000000:.0f}" if latest_financial and latest_financial.operating_income else '-',
+                    f"{latest_financial.net_income/100000000:.0f}" if latest_financial and latest_financial.net_income else '-',
+                    latest_indicator.date.strftime('%Y-%m-%d')
+                ]
+                
+                writer.writerow(row)
+                
+            except Stock.DoesNotExist:
+                continue
+            except Exception as e:
+                logger.error(f"CSV出力エラー {stock_code}: {e}")
+                continue
+        
+        # フッター情報
+        writer.writerow([])
+        writer.writerow(['=== 比較分析レポート ==='])
+        writer.writerow(['比較銘柄数', len(stock_codes)])
+        writer.writerow(['分析実行日時', timezone.now().strftime('%Y-%m-%d %H:%M:%S')])
+        writer.writerow(['分析条件', '多角的指標による総合評価'])
+        
+    except Exception as e:
+        logger.error(f"比較CSV出力エラー: {e}")
+        writer.writerow(['エラー', 'データ出力中にエラーが発生しました'])
+    
+    return response
+
+def comparison_export_pdf(request):
+    """比較結果のPDF出力（将来実装）"""
+    # PDF出力は将来の機能として予約
+    return HttpResponse('PDF出力機能は今後実装予定です', content_type='text/plain')
+
+@csrf_exempt 
+def api_watchlist_create(request):
+    """ウォッチリスト作成API"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST method required'}, status=405)
+    
+    try:
+        data = json.loads(request.body)
+        name = data.get('name', '').strip()
+        stock_codes = data.get('stocks', [])
+        
+        if not name:
+            return JsonResponse({'error': 'ウォッチリスト名が必要です'}, status=400)
+        
+        if not stock_codes:
+            return JsonResponse({'error': '銘柄が指定されていません'}, status=400)
+        
+        # 簡易実装：セッションに保存
+        watchlists = request.session.get('watchlists', {})
+        watchlists[name] = {
+            'stocks': stock_codes,
+            'created': timezone.now().isoformat(),
+            'description': f'比較分析から作成（{len(stock_codes)}銘柄）'
+        }
+        request.session['watchlists'] = watchlists
+        request.session.modified = True
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'ウォッチリスト「{name}」を作成しました',
+            'watchlist_id': name
+        })
+    
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
+    except Exception as e:
+        logger.error(f"ウォッチリスト作成エラー: {e}")
+        return JsonResponse({'error': 'ウォッチリストの作成に失敗しました'}, status=500)
