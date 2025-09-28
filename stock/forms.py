@@ -1,4 +1,4 @@
-# stock/forms.py - マスタデータ対応版
+# stock/forms.py - ソートオプション拡張版
 from django import forms
 from django.core.validators import MinValueValidator, MaxValueValidator
 from decimal import Decimal
@@ -551,12 +551,22 @@ class StockScreeningForm(forms.Form):
         choices=[
             ('total_score', '総合スコア（高い順）'),
             ('-total_score', '総合スコア（低い順）'),
+            ('valuation_score', 'バリューションスコア（高い順）'),
+            ('-valuation_score', 'バリューションスコア（低い順）'),
+            ('profitability_score', '収益性スコア（高い順）'),
+            ('-profitability_score', '収益性スコア（低い順）'),
+            ('growth_score', '成長性スコア（高い順）'),
+            ('-growth_score', '成長性スコア（低い順）'),
+            ('safety_score', '安全性スコア（高い順）'),
+            ('-safety_score', '安全性スコア（低い順）'),
             ('per', 'PER（低い順）'),
             ('-per', 'PER（高い順）'),
             ('pbr', 'PBR（低い順）'),
             ('-pbr', 'PBR（高い順）'),
             ('-roe', 'ROE（高い順）'),
             ('roe', 'ROE（低い順）'),
+            ('-roa', 'ROA（高い順）'),
+            ('roa', 'ROA（低い順）'),
             ('-dividend_yield', '配当利回り（高い順）'),
             ('dividend_yield', '配当利回り（低い順）'),
             ('price', '株価（安い順）'),
@@ -564,6 +574,9 @@ class StockScreeningForm(forms.Form):
             ('-market_cap', '時価総額（大きい順）'),
             ('market_cap', '時価総額（小さい順）'),
             ('code', '銘柄コード（昇順）'),
+            ('-code', '銘柄コード（降順）'),
+            ('name', '企業名（昇順）'),
+            ('-name', '企業名（降順）'),
         ],
         required=False,
         initial='total_score',

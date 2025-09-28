@@ -1,4 +1,4 @@
-<!-- stock/templates/stock/screening.html - 改善版マスタデータ対応 -->
+<!-- stock/templates/stock/screening.html - 改善版（スコア表示対応） -->
 {% extends 'stock/base.html' %}
 
 {% block title %}プロフェッショナル・スクリーニング - 株式分析{% endblock %}
@@ -301,6 +301,49 @@
         font-size: 0.75rem;
         text-transform: uppercase;
         letter-spacing: 0.5px;
+        position: relative;
+    }
+    
+    .sortable {
+        cursor: pointer;
+        user-select: none;
+        transition: background-color 0.2s ease;
+        position: relative;
+    }
+    
+    .sortable:hover {
+        background-color: #e9ecef !important;
+    }
+    
+    .sort-icon {
+        margin-left: 4px;
+        font-size: 0.7rem;
+        opacity: 0.5;
+        transition: all 0.2s ease;
+    }
+    
+    .sortable:hover .sort-icon {
+        opacity: 0.8;
+    }
+    
+    .sortable.sort-asc .sort-icon {
+        opacity: 1;
+        color: #667eea;
+        transform: rotate(0deg);
+    }
+    
+    .sortable.sort-desc .sort-icon {
+        opacity: 1;
+        color: #667eea;
+        transform: rotate(180deg);
+    }
+    
+    .sortable.sort-asc .sort-icon:before {
+        content: "\f0de"; /* fa-sort-up */
+    }
+    
+    .sortable.sort-desc .sort-icon:before {
+        content: "\f0dd"; /* fa-sort-down */
     }
     
     .results-table td {
@@ -328,10 +371,98 @@
         min-width: 40px;
     }
     
-    .metric-excellent { background: #d4f6d4; color: #2d7d32; }
+    .metric-excellent { background: #d4edda; color: #155724; }
     .metric-good { background: #fff3cd; color: #856404; }
     .metric-average { background: #e2e3e5; color: #383d41; }
-    .metric-poor { background: #ffcdd2; color: #c62828; }
+    .metric-poor { background: #f8d7da; color: #721c24; }
+    
+    .score-badge {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 0.8rem;
+        font-weight: 700;
+        text-align: center;
+        min-width: 35px;
+        color: white;
+    }
+    
+    .score-excellent { background: linear-gradient(135deg, #28a745, #20c997); }
+    .score-good { background: linear-gradient(135deg, #007bff, #17a2b8); }
+    .score-average { background: linear-gradient(135deg, #ffc107, #fd7e14); }
+    .score-poor { background: linear-gradient(135deg, #dc3545, #e83e8c); }
+    
+    .data-indicator {
+        display: inline-block;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        margin-left: 4px;
+    }
+    
+    .data-fresh { background: #28a745; }
+    .data-old { background: #ffc107; }
+    .data-missing { background: #dc3545; }
+    
+    /* モバイル対応 */
+    @media (max-width: 768px) {
+        .results-table th {
+            font-size: 0.7rem;
+            padding: 6px 4px;
+        }
+        
+        .results-table td {
+            font-size: 0.75rem;
+            padding: 6px 4px;
+        }
+        
+        .sort-icon {
+            font-size: 0.6rem;
+        }
+        
+        .metric-badge {
+            font-size: 0.65rem;
+            padding: 2px 4px;
+            min-width: 30px;
+        }
+        
+        .score-badge {
+            font-size: 0.7rem;
+            padding: 3px 6px;
+            min-width: 30px;
+        }
+        
+        .btn-group-sm .btn {
+            font-size: 0.7rem;
+            padding: 4px 8px;
+        }
+        
+        .search-toggle-btn {
+            padding: 8px 12px;
+            font-size: 0.9rem;
+        }
+    }
+    
+    /* テーブルソート時のアニメーション */
+    .table-loading {
+        position: relative;
+        opacity: 0.7;
+        pointer-events: none;
+    }
+    
+    .table-loading::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
+    }
 </style>
 {% endblock %}
 
@@ -803,23 +934,65 @@
         <div class="results-container">
             <div class="results-header">
                 <div class="row align-items-center">
-                    <div class="col-md-8">
+                    <div class="col-md-6">
                         <h5 class="mb-1">
                             <i class="fas fa-list-alt me-2"></i>スクリーニング結果
                         </h5>
                         <small class="opacity-75">
                             {{ total_count }}件該当 | 実行時間: {{ execution_time|default:"0.23" }}秒
+                            {% if request.GET.sort_by %}
+                            <br>ソート: <span id="current-sort-display">{{ request.GET.sort_by }}</span>
+                            {% endif %}
                         </small>
                     </div>
-                    <div class="col-md-4 text-end">
-                        <div class="btn-group btn-group-sm">
-                            <a href="{% url 'stock:export_csv' %}?{{ request.GET.urlencode }}" class="btn btn-outline-light btn-sm">
-                                <i class="fas fa-file-csv me-1"></i>CSV出力
-                            </a>
-                            <button class="btn btn-outline-light btn-sm">
-                                <i class="fas fa-chart-bar me-1"></i>分析
-                            </button>
+                    <div class="col-md-6 text-end">
+                        <div class="d-flex justify-content-end align-items-center gap-2">
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-light btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                    <i class="fas fa-sort me-1"></i>並び替え
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li><h6 class="dropdown-header">スコア別</h6></li>
+                                    <li><a class="dropdown-item" href="#" onclick="quickSort('total_score')">総合スコア（高い順）</a></li>
+                                    <li><a class="dropdown-item" href="#" onclick="quickSort('valuation_score')">バリューション（高い順）</a></li>
+                                    <li><a class="dropdown-item" href="#" onclick="quickSort('growth_score')">成長性（高い順）</a></li>
+                                    <li><a class="dropdown-item" href="#" onclick="quickSort('safety_score')">安全性（高い順）</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><h6 class="dropdown-header">指標別</h6></li>
+                                    <li><a class="dropdown-item" href="#" onclick="quickSort('per')">PER（低い順）</a></li>
+                                    <li><a class="dropdown-item" href="#" onclick="quickSort('pbr')">PBR（低い順）</a></li>
+                                    <li><a class="dropdown-item" href="#" onclick="quickSort('-dividend_yield')">配当利回り（高い順）</a></li>
+                                    <li><a class="dropdown-item" href="#" onclick="quickSort('-roe')">ROE（高い順）</a></li>
+                                    <li><a class="dropdown-item" href="#" onclick="quickSort('price')">株価（安い順）</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><h6 class="dropdown-header">その他</h6></li>
+                                    <li><a class="dropdown-item" href="#" onclick="quickSort('code')">銘柄コード順</a></li>
+                                    <li><a class="dropdown-item" href="#" onclick="quickSort('name')">企業名順</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item text-muted" href="#" onclick="resetSort()">
+                                        <i class="fas fa-undo me-1"></i>ソートリセット
+                                    </a></li>
+                                </ul>
+                            </div>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'stock:export_csv' %}?{{ request.GET.urlencode }}" class="btn btn-outline-light btn-sm">
+                                    <i class="fas fa-file-csv me-1"></i>CSV出力
+                                </a>
+                                <button class="btn btn-outline-light btn-sm">
+                                    <i class="fas fa-chart-bar me-1"></i>分析
+                                </button>
+                            </div>
                         </div>
+                    </div>
+                </div>
+                
+                <!-- ソートヒント -->
+                <div class="row mt-2">
+                    <div class="col-12">
+                        <small class="text-white-50">
+                            <i class="fas fa-info-circle me-1"></i>
+                            テーブルのヘッダーをクリックしてソートできます
+                        </small>
                     </div>
                 </div>
             </div>
@@ -828,18 +1001,55 @@
                 <table class="table results-table table-hover mb-0">
                     <thead>
                         <tr>
-                            <th width="6%">銘柄</th>
-                            <th width="20%">企業名</th>
+                            <th width="6%" class="sortable" data-sort="code">
+                                銘柄
+                                <i class="fas fa-sort sort-icon"></i>
+                            </th>
+                            <th width="20%" class="sortable" data-sort="name">
+                                企業名
+                                <i class="fas fa-sort sort-icon"></i>
+                            </th>
                             <th width="8%">市場</th>
-                            <th width="6%">PER</th>
-                            <th width="6%">PBR</th>
-                            <th width="6%">ROE</th>
-                            <th width="6%">ROA</th>
-                            <th width="8%">配当利回り</th>
-                            <th width="8%">株価</th>
-                            <th width="6%">成長性</th>
-                            <th width="6%">安全性</th>
-                            <th width="6%">総合</th>
+                            <th width="6%" class="sortable" data-sort="per">
+                                PER
+                                <i class="fas fa-sort sort-icon"></i>
+                            </th>
+                            <th width="6%" class="sortable" data-sort="pbr">
+                                PBR
+                                <i class="fas fa-sort sort-icon"></i>
+                            </th>
+                            <th width="6%" class="sortable" data-sort="roe">
+                                ROE
+                                <i class="fas fa-sort sort-icon"></i>
+                            </th>
+                            <th width="6%" class="sortable" data-sort="roa">
+                                ROA
+                                <i class="fas fa-sort sort-icon"></i>
+                            </th>
+                            <th width="8%" class="sortable" data-sort="dividend_yield">
+                                配当利回り
+                                <i class="fas fa-sort sort-icon"></i>
+                            </th>
+                            <th width="8%" class="sortable" data-sort="price">
+                                株価
+                                <i class="fas fa-sort sort-icon"></i>
+                            </th>
+                            <th width="6%" class="sortable" data-sort="valuation_score">
+                                バリュー
+                                <i class="fas fa-sort sort-icon"></i>
+                            </th>
+                            <th width="6%" class="sortable" data-sort="growth_score">
+                                成長性
+                                <i class="fas fa-sort sort-icon"></i>
+                            </th>
+                            <th width="6%" class="sortable" data-sort="safety_score">
+                                安全性
+                                <i class="fas fa-sort sort-icon"></i>
+                            </th>
+                            <th width="6%" class="sortable" data-sort="total_score">
+                                総合
+                                <i class="fas fa-sort sort-icon"></i>
+                            </th>
                             <th width="8%">操作</th>
                         </tr>
                     </thead>
@@ -914,37 +1124,32 @@
                                 {% endif %}
                             </td>
                             <td>
-                                {% if result.growth_score %}
                                 <div class="text-center">
-                                    <div class="metric-badge {% if result.growth_score > 80 %}metric-excellent{% elif result.growth_score > 60 %}metric-good{% elif result.growth_score > 40 %}metric-average{% else %}metric-poor{% endif %}">
+                                    <div class="score-badge {% if result.valuation_score > 20 %}score-excellent{% elif result.valuation_score > 15 %}score-good{% elif result.valuation_score > 8 %}score-average{% else %}score-poor{% endif %}">
+                                        {{ result.valuation_score }}
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="text-center">
+                                    <div class="score-badge {% if result.growth_score > 20 %}score-excellent{% elif result.growth_score > 15 %}score-good{% elif result.growth_score > 8 %}score-average{% else %}score-poor{% endif %}">
                                         {{ result.growth_score }}
                                     </div>
                                 </div>
-                                {% else %}
-                                <span class="text-muted">-</span>
-                                {% endif %}
                             </td>
                             <td>
-                                {% if result.safety_score %}
                                 <div class="text-center">
-                                    <div class="metric-badge {% if result.safety_score > 80 %}metric-excellent{% elif result.safety_score > 60 %}metric-good{% elif result.safety_score > 40 %}metric-average{% else %}metric-poor{% endif %}">
+                                    <div class="score-badge {% if result.safety_score > 20 %}score-excellent{% elif result.safety_score > 15 %}score-good{% elif result.safety_score > 8 %}score-average{% else %}score-poor{% endif %}">
                                         {{ result.safety_score }}
                                     </div>
                                 </div>
-                                {% else %}
-                                <span class="text-muted">-</span>
-                                {% endif %}
                             </td>
                             <td>
-                                {% if result.total_score %}
                                 <div class="text-center">
-                                    <div class="metric-badge {% if result.total_score > 80 %}metric-excellent{% elif result.total_score > 60 %}metric-good{% elif result.total_score > 40 %}metric-average{% else %}metric-poor{% endif %}">
+                                    <div class="score-badge {% if result.total_score > 80 %}score-excellent{% elif result.total_score > 60 %}score-good{% elif result.total_score > 40 %}score-average{% else %}score-poor{% endif %}">
                                         {{ result.total_score }}
                                     </div>
                                 </div>
-                                {% else %}
-                                <span class="text-muted">-</span>
-                                {% endif %}
                             </td>
                             <td>
                                 <div class="btn-group btn-group-sm" role="group">
@@ -1019,7 +1224,7 @@
             <i class="fas fa-microscope text-primary fa-5x mb-3"></i>
             <h3 class="text-primary">プロフェッショナル・スクリーニング</h3>
             <p class="text-muted mb-4">
-                左上の詳細検索ボタンから条件を設定して、最適な投資機会を発見してください。<br>
+                右上の詳細検索ボタンから条件を設定して、最適な投資機会を発見してください。<br>
                 クイック検索で簡単に始めることもできます。
             </p>
             <div class="row mt-4">
@@ -1309,8 +1514,170 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.fa-chevron-down').forEach(icon => {
         icon.style.transform = 'rotate(-90deg)';
     });
+    
+    // ソート機能の初期化
+    initializeSorting();
 });
 
-console.log('改善版プロフェッショナル・スクリーニング初期化完了（マスタデータ対応版）');
+// ソート機能の初期化
+function initializeSorting() {
+    // 現在のソート状態を取得
+    const urlParams = new URLSearchParams(window.location.search);
+    const currentSort = urlParams.get('sort_by') || '';
+    
+    // ヘッダーにソート状態を表示
+    updateSortHeaders(currentSort);
+    
+    // 現在のソート表示を更新
+    const sortDisplay = document.getElementById('current-sort-display');
+    if (sortDisplay && currentSort) {
+        sortDisplay.textContent = getSortDisplayText(currentSort);
+    }
+    
+    // ソート可能なヘッダーにクリックイベントを追加
+    document.querySelectorAll('.sortable').forEach(header => {
+        header.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const sortField = this.getAttribute('data-sort');
+            handleSort(sortField);
+        });
+    });
+}
+
+// ソート状態の更新
+function updateSortHeaders(currentSort) {
+    // 全てのソートクラスをリセット
+    document.querySelectorAll('.sortable').forEach(header => {
+        header.classList.remove('sort-asc', 'sort-desc');
+        const icon = header.querySelector('.sort-icon');
+        if (icon) {
+            icon.className = 'fas fa-sort sort-icon';
+        }
+    });
+    
+    if (currentSort) {
+        let field = currentSort;
+        let direction = 'asc';
+        
+        // 降順の場合（-プレフィックス）
+        if (currentSort.startsWith('-')) {
+            field = currentSort.substring(1);
+            direction = 'desc';
+        }
+        
+        // 対応するヘッダーを見つけて状態を更新
+        const targetHeader = document.querySelector(`[data-sort="${field}"]`);
+        if (targetHeader) {
+            targetHeader.classList.add(`sort-${direction}`);
+            const icon = targetHeader.querySelector('.sort-icon');
+            if (icon) {
+                if (direction === 'asc') {
+                    icon.className = 'fas fa-sort-up sort-icon';
+                } else {
+                    icon.className = 'fas fa-sort-down sort-icon';
+                }
+            }
+        }
+    }
+}
+
+// ソート処理
+function handleSort(field) {
+    // ローディング状態を表示
+    showSortLoading(field);
+    
+    // テーブル全体にローディング状態を適用
+    const table = document.querySelector('.results-table');
+    if (table) {
+        table.classList.add('table-loading');
+    }
+    
+    const urlParams = new URLSearchParams(window.location.search);
+    const currentSort = urlParams.get('sort_by') || '';
+    
+    let newSort;
+    
+    if (currentSort === field) {
+        // 同じフィールドの場合は降順に
+        newSort = `-${field}`;
+    } else if (currentSort === `-${field}`) {
+        // 既に降順の場合は昇順に戻す
+        newSort = field;
+    } else {
+        // 新しいフィールドの場合は昇順から開始
+        newSort = field;
+    }
+    
+    // URLパラメータを更新
+    urlParams.set('sort_by', newSort);
+    
+    // ページを更新
+    const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
+    window.location.href = newUrl;
+}
+
+// ソートローディング表示
+function showSortLoading(field) {
+    const header = document.querySelector(`[data-sort="${field}"]`);
+    if (header) {
+        const icon = header.querySelector('.sort-icon');
+        if (icon) {
+            icon.className = 'fas fa-spinner fa-spin sort-icon';
+        }
+    }
+}
+
+// ソート状態をリセット
+function resetSort() {
+    const urlParams = new URLSearchParams(window.location.search);
+    urlParams.delete('sort_by');
+    const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
+    window.location.href = newUrl;
+}
+
+// クイックソート（ドロップダウンメニュー用）
+function quickSort(sortField) {
+    const urlParams = new URLSearchParams(window.location.search);
+    urlParams.set('sort_by', sortField);
+    const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
+    window.location.href = newUrl;
+}
+
+// ソート状態の表示テキスト取得
+function getSortDisplayText(sortBy) {
+    const sortLabels = {
+        'total_score': '総合スコア（高い順）',
+        '-total_score': '総合スコア（低い順）',
+        'valuation_score': 'バリューションスコア（高い順）',
+        '-valuation_score': 'バリューションスコア（低い順）',
+        'growth_score': '成長性スコア（高い順）',
+        '-growth_score': '成長性スコア（低い順）',
+        'safety_score': '安全性スコア（高い順）',
+        '-safety_score': '安全性スコア（低い順）',
+        'per': 'PER（低い順）',
+        '-per': 'PER（高い順）',
+        'pbr': 'PBR（低い順）',
+        '-pbr': 'PBR（高い順）',
+        'roe': 'ROE（低い順）',
+        '-roe': 'ROE（高い順）',
+        'roa': 'ROA（低い順）',
+        '-roa': 'ROA（高い順）',
+        'dividend_yield': '配当利回り（低い順）',
+        '-dividend_yield': '配当利回り（高い順）',
+        'price': '株価（安い順）',
+        '-price': '株価（高い順）',
+        'market_cap': '時価総額（小さい順）',
+        '-market_cap': '時価総額（大きい順）',
+        'code': '銘柄コード（昇順）',
+        '-code': '銘柄コード（降順）',
+        'name': '企業名（昇順）',
+        '-name': '企業名（降順）'
+    };
+    
+    return sortLabels[sortBy] || 'カスタムソート';
+}
+
+console.log('改善版プロフェッショナル・スクリーニング初期化完了（完全実装版）');
 </script>
 {% endblock %}
