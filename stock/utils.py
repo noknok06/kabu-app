@@ -329,7 +329,7 @@ class StockDataFetcher:
             if dividend_yield_raw is not None:
                 dividend_yield_percent = StockDataFetcher.safe_decimal_convert(dividend_yield_raw)
                 if dividend_yield_percent is not None:
-                    dividend_yield = dividend_yield_percent * 100  # パーセント表示
+                    dividend_yield = dividend_yield_percent  # パーセント表示
             
             # 株価取得
             price = None

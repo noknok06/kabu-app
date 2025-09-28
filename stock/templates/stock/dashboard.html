@@ -1,322 +1,952 @@
-<!-- stock/templates/stock/dashboard.html -->
+<!-- stock/templates/stock/dashboard.html - プロフェッショナル版 -->
 {% extends 'stock/base.html' %}
 
-{% block title %}ダッシュボード - 株式スクリーニング{% endblock %}
+{% block title %}プロフェッショナル・ダッシュボード - 株式分析{% endblock %}
+
+{% block extra_css %}
+<style>
+    .market-overview {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 25px;
+    }
+    
+    .metric-widget {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        transition: all 0.3s ease;
+        height: 100%;
+        border-left: 4px solid #667eea;
+    }
+    
+    .metric-widget:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+    }
+    
+    .widget-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin: 10px 0;
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    
+    .widget-change {
+        font-size: 0.9rem;
+        font-weight: 600;
+        padding: 4px 8px;
+        border-radius: 12px;
+        margin-top: 8px;
+        display: inline-block;
+    }
+    
+    .change-positive { background: #d4f6d4; color: #2d7d32; }
+    .change-negative { background: #ffcdd2; color: #c62828; }
+    
+    .search-widget {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        margin-bottom: 25px;
+    }
+    
+    .search-input {
+        border: 2px solid #e9ecef;
+        border-radius: 10px;
+        padding: 15px 20px;
+        font-size: 1.1rem;
+        width: 100%;
+        transition: all 0.3s ease;
+    }
+    
+    .search-input:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        outline: none;
+    }
+    
+    .search-results {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        max-height: 300px;
+        overflow-y: auto;
+        z-index: 1000;
+        display: none;
+    }
+    
+    .search-result-item {
+        padding: 12px 20px;
+        cursor: pointer;
+        border-bottom: 1px solid #f8f9fa;
+        transition: background 0.2s ease;
+    }
+    
+    .search-result-item:hover {
+        background: #f8f9fa;
+    }
+    
+    .search-result-item:last-child {
+        border-bottom: none;
+    }
+    
+    .heatmap-container {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        margin-bottom: 25px;
+    }
+    
+    .heatmap-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 8px;
+        margin-top: 15px;
+    }
+    
+    .heatmap-cell {
+        aspect-ratio: 1;
+        border-radius: 8px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        color: white;
+        font-weight: 600;
+        font-size: 0.9rem;
+        text-align: center;
+        padding: 8px;
+        transition: transform 0.2s ease;
+    }
+    
+    .heatmap-cell:hover {
+        transform: scale(1.05);
+        cursor: pointer;
+    }
+    
+    .sector-positive { background: linear-gradient(135deg, #4caf50, #81c784); }
+    .sector-negative { background: linear-gradient(135deg, #f44336, #ef5350); }
+    .sector-neutral { background: linear-gradient(135deg, #9e9e9e, #bdbdbd); }
+    
+    .watchlist-widget {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        height: 100%;
+    }
+    
+    .news-widget {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        max-height: 500px;
+        overflow-y: auto;
+    }
+    
+    .news-item {
+        padding: 12px 0;
+        border-bottom: 1px solid #f8f9fa;
+    }
+    
+    .news-item:last-child {
+        border-bottom: none;
+    }
+    
+    .alert-widget {
+        background: linear-gradient(135deg, #ff9800, #ff5722);
+        color: white;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 25px;
+    }
+    
+    .chart-container {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        height: 400px;
+    }
+    
+    .quick-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 15px;
+    }
+    
+    .action-btn {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .action-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    }
+    
+    .performance-table {
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+    
+    .performance-table th {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        font-weight: 600;
+        padding: 12px;
+        border: none;
+        font-size: 0.9rem;
+    }
+    
+    .performance-table td {
+        padding: 10px;
+        font-size: 0.9rem;
+        border-color: #f1f3f4;
+    }
+    
+    .loading-skeleton {
+        background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+        background-size: 200% 100%;
+        animation: loading 1.5s infinite;
+        border-radius: 4px;
+        height: 20px;
+        margin: 5px 0;
+    }
+    
+    @keyframes loading {
+        0% { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-4 border-bottom">
-    <h1 class="h2">
-        <i class="fas fa-tachometer-alt text-primary me-2"></i>
-        ダッシュボード
-    </h1>
-    <div class="btn-toolbar mb-2 mb-md-0">
-        <div class="btn-group me-2">
-            <a href="{% url 'stock:screening' %}" class="btn btn-primary">
-                <i class="fas fa-filter me-1"></i>
-                スクリーニング開始
-            </a>
-        </div>
-    </div>
-</div>
-
-<!-- 統計情報カード -->
-<div class="row mb-4">
-    <div class="col-md-3 mb-3">
-        <div class="stats-card text-center">
-            <div class="text-muted">
-                <i class="fas fa-building fa-2x text-primary"></i>
-            </div>
-            <div class="stats-number text-primary">{{ total_stock|default:0 }}</div>
-            <h5 class="card-title">総銘柄数</h5>
-            <p class="text-muted">データベース登録済み</p>
-        </div>
-    </div>
-    <div class="col-md-3 mb-3">
-        <div class="stats-card text-center">
-            <div class="text-muted">
-                <i class="fas fa-chart-line fa-2x text-success"></i>
-            </div>
-            <div class="stats-number text-success">{{ latest_indicators|default:0 }}</div>
-            <h5 class="card-title">最新指標データ</h5>
-            <p class="text-muted">過去7日間の更新</p>
-        </div>
-    </div>
-    <div class="col-md-3 mb-3">
-        <div class="stats-card text-center">
-            <div class="text-muted">
-                <i class="fas fa-file-invoice-dollar fa-2x text-info"></i>
-            </div>
-            <div class="stats-number text-info">{{ total_financials|default:0 }}</div>
-            <h5 class="card-title">財務データ</h5>
-            <p class="text-muted">総レコード数</p>
-        </div>
-    </div>
-    <div class="col-md-3 mb-3">
-        <div class="stats-card text-center">
-            <div class="text-muted">
-                <i class="fas fa-percentage fa-2x text-warning"></i>
-            </div>
-            <div class="stats-number text-warning">{{ financial_coverage|default:0 }}%</div>
-            <h5 class="card-title">財務データ率</h5>
-            <p class="text-muted">財務データがある銘柄</p>
-        </div>
-    </div>
-</div>
-
-<!-- 統計サマリーと市場区分 -->
-<div class="row mb-4">
-    <!-- 指標分布統計 -->
-    <div class="col-md-8">
-        <div class="stats-card">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h5><i class="fas fa-chart-bar text-primary me-2"></i>指標分布統計</h5>
-                {% if distribution_stats.latest_date %}
-                <span class="badge bg-primary">{{ distribution_stats.latest_date }}</span>
-                {% endif %}
-            </div>
-            
-            {% if distribution_stats %}
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="row text-center">
-                        <div class="col-6">
-                            <div class="border-end">
-                                <h4 class="text-primary">{{ distribution_stats.avg_per|floatformat:1|default:"-" }}</h4>
-                                <small class="text-muted">平均PER</small>
-                            </div>
-                        </div>
-                        <div class="col-6">
-                            <h4 class="text-success">{{ distribution_stats.avg_pbr|floatformat:2|default:"-" }}</h4>
-                            <small class="text-muted">平均PBR</small>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="row text-center">
-                        <div class="col-4">
-                            <h5 class="text-info">{{ distribution_stats.low_per_count|default:0 }}</h5>
-                            <small class="text-muted">PER<15倍</small>
-                        </div>
-                        <div class="col-4">
-                            <h5 class="text-info">{{ distribution_stats.low_pbr_count|default:0 }}</h5>
-                            <small class="text-muted">PBR<1.5倍</small>
-                        </div>
-                        <div class="col-4">
-                            <h5 class="text-warning">{{ distribution_stats.high_dividend_count|default:0 }}</h5>
-                            <small class="text-muted">配当利回り>3%</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            {% else %}
-            <div class="text-center py-3">
-                <i class="fas fa-exclamation-triangle text-warning fa-2x"></i>
-                <p class="text-muted mt-2">指標データがありません</p>
-                <small>管理コマンドでデータを更新してください</small>
-            </div>
-            {% endif %}
-        </div>
-    </div>
-    
-    <!-- 市場区分別統計 -->
-    <div class="col-md-4">
-        <div class="stats-card">
-            <h5><i class="fas fa-chart-pie text-success me-2"></i>市場区分別</h5>
-            {% if market_stats %}
-            <div class="mt-3">
-                {% for market in market_stats %}
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <span class="text-muted">{{ market.market|default:"未設定" }}</span>
-                    <div>
-                        <span class="badge bg-light text-dark">{{ market.count }}</span>
-                        <span class="text-muted small">
-                            ({{ market.count|floatformat:0 }}%)
-                        </span>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-            {% else %}
-            <p class="text-muted">データがありません</p>
-            {% endif %}
-        </div>
-    </div>
-</div>
-
-<!-- 最近の更新 -->
-<div class="row">
-    <div class="col-12">
-        <div class="stats-card">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h5><i class="fas fa-clock text-info me-2"></i>最近更新された銘柄</h5>
-                <a href="{% url 'stock:screening' %}" class="btn btn-outline-primary btn-sm">
-                    <i class="fas fa-search me-1"></i>
-                    スクリーニングで検索
-                </a>
-            </div>
-            
-            {% if recent_indicators %}
-            <div class="table-responsive">
-                <table class="table table-hover mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th><i class="fas fa-code me-1"></i>コード</th>
-                            <th><i class="fas fa-building me-1"></i>企業名</th>
-                            <th><i class="fas fa-chart-line me-1"></i>PER</th>
-                            <th><i class="fas fa-chart-area me-1"></i>PBR</th>
-                            <th><i class="fas fa-percentage me-1"></i>配当利回り</th>
-                            <th><i class="fas fa-yen-sign me-1"></i>株価</th>
-                            <th><i class="fas fa-calendar me-1"></i>更新日時</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for indicator in recent_indicators %}
-                        <tr>
-                            <td>
-                                <a href="{% url 'stock:stock_detail' stock_code=indicator.stock.code %}" class="text-decoration-none">
-                                    <strong class="text-primary">{{ indicator.stock.code }}</strong>
-                                </a>
-                            </td>
-                            <td>
-                                <div class="text-truncate" style="max-width: 200px;">
-                                    {{ indicator.stock.name }}
-                                </div>
-                                {% if indicator.stock.market %}
-                                <small class="text-muted">{{ indicator.stock.market }}</small>
-                                {% endif %}
-                            </td>
-                            <td class="indicator-value">
-                                {% if indicator.per %}
-                                    <span class="{% if indicator.per < 15 %}text-success{% elif indicator.per > 25 %}text-danger{% endif %}">
-                                        {{ indicator.per|floatformat:1 }}
-                                    </span>
-                                {% else %}
-                                    <span class="text-muted">-</span>
-                                {% endif %}
-                            </td>
-                            <td class="indicator-value">
-                                {% if indicator.pbr %}
-                                    <span class="{% if indicator.pbr < 1 %}text-success{% elif indicator.pbr > 3 %}text-danger{% endif %}">
-                                        {{ indicator.pbr|floatformat:2 }}
-                                    </span>
-                                {% else %}
-                                    <span class="text-muted">-</span>
-                                {% endif %}
-                            </td>
-                            <td class="indicator-value">
-                                {% if indicator.dividend_yield %}
-                                    <span class="{% if indicator.dividend_yield > 3 %}text-success{% endif %}">
-                                        {{ indicator.dividend_yield|floatformat:2 }}%
-                                    </span>
-                                {% else %}
-                                    <span class="text-muted">-</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if indicator.price %}
-                                    ¥{{ indicator.price|floatformat:0 }}
-                                {% else %}
-                                    <span class="text-muted">-</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <small class="text-muted">
-                                    {{ indicator.updated_at|date:"m/d H:i" }}
-                                </small>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            {% else %}
-            <div class="text-center py-4">
-                <i class="fas fa-database text-muted fa-3x"></i>
-                <p class="text-muted mt-3">最近の更新データがありません</p>
-                <p class="small text-muted">
-                    データを取得するには管理コマンドを実行してください
+<div class="container-fluid">
+    <!-- マーケットオーバービュー -->
+    <div class="market-overview">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h2 class="mb-3">
+                    <i class="fas fa-chart-line me-2"></i>
+                    プロフェッショナル・ダッシュボード
+                </h2>
+                <p class="mb-0 opacity-75">
+                    <i class="fas fa-clock me-1"></i>
+                    最終更新: <span id="last-update">{{ last_update|default:"取得中..." }}</span>
+                    <span class="ms-3">
+                        <i class="fas fa-database me-1"></i>
+                        データ範囲: {{ total_stocks|default:0 }}銘柄
+                    </span>
                 </p>
             </div>
-            {% endif %}
-        </div>
-    </div>
-</div>
-
-<!-- 管理コマンド情報 -->
-<div class="row mt-4">
-    <div class="col-12">
-        <div class="stats-card">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h5><i class="fas fa-terminal text-dark me-2"></i>データ更新コマンド</h5>
-                <span class="badge bg-light text-dark">管理者向け</span>
-            </div>
-            
-            <div class="row">
-                <div class="col-md-4">
-                    <div class="border rounded p-3 h-100">
-                        <h6><i class="fas fa-list me-1"></i>銘柄リスト更新</h6>
-                        <code class="d-block bg-light p-2 rounded">
-                            python manage.py update_stock_list
-                        </code>
-                        <small class="text-muted">JPXから上場銘柄一覧を取得</small>
-                    </div>
+            <div class="col-md-4 text-end">
+                <div class="d-flex justify-content-end gap-2">
+                    <button class="btn btn-outline-light btn-sm" onclick="refreshDashboard()">
+                        <i class="fas fa-sync-alt me-1"></i>更新
+                    </button>
+                    <button class="btn btn-outline-light btn-sm" onclick="toggleAutoRefresh()">
+                        <i class="fas fa-play me-1"></i>自動更新
+                    </button>
                 </div>
-                <div class="col-md-4">
-                    <div class="border rounded p-3 h-100">
-                        <h6><i class="fas fa-chart-line me-1"></i>指標データ更新</h6>
-                        <code class="d-block bg-light p-2 rounded">
-                            python manage.py update_indicators --limit 50
-                        </code>
-                        <small class="text-muted">PER, PBR, 配当利回りを取得</small>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="border rounded p-3 h-100">
-                        <h6><i class="fas fa-file-invoice-dollar me-1"></i>財務データ更新</h6>
-                        <code class="d-block bg-light p-2 rounded">
-                            python manage.py update_financials --limit 20
-                        </code>
-                        <small class="text-muted">売上高、純利益、EPSを取得</small>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="mt-3 p-3 bg-light rounded">
-                <i class="fas fa-info-circle text-info me-1"></i>
-                <strong>運用のヒント:</strong>
-                <ul class="mb-0 mt-2">
-                    <li>初回は <code>update_stock_list</code> で銘柄を登録</li>
-                    <li>daily: <code>update_indicators --limit 100</code> で指標を更新</li>
-                    <li>weekly: <code>update_financials --limit 50</code> で財務を更新</li>
-                    <li>cron や celery での自動実行を推奨</li>
-                </ul>
             </div>
         </div>
     </div>
-</div>
 
+    <!-- 銘柄検索ウィジェット -->
+    <div class="search-widget">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h5 class="mb-3">
+                    <i class="fas fa-search text-primary me-2"></i>
+                    銘柄検索
+                </h5>
+                <div class="position-relative">
+                    <input type="text" 
+                           id="stock-search" 
+                           class="search-input" 
+                           placeholder="銘柄コード (例: 7203) または企業名 (例: トヨタ) を入力..."
+                           autocomplete="off">
+                    <div id="search-results" class="search-results"></div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="quick-actions">
+                    <button class="action-btn" onclick="quickSearch('高配当')">
+                        <i class="fas fa-coins me-1"></i>高配当株
+                    </button>
+                    <button class="action-btn" onclick="quickSearch('割安')">
+                        <i class="fas fa-gem me-1"></i>割安株
+                    </button>
+                    <button class="action-btn" onclick="quickSearch('成長')">
+                        <i class="fas fa-rocket me-1"></i>成長株
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- メイン指標ウィジェット -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="metric-widget">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-1">
+                            <i class="fas fa-chart-bar text-primary me-1"></i>
+                            平均PER
+                        </h6>
+                        <div class="widget-value" id="avg-per">{{ market_metrics.avg_per|floatformat:1|default:"--" }}</div>
+                        <span class="widget-change change-neutral">
+                            業界標準: 15-20倍
+                        </span>
+                    </div>
+                    <div class="text-primary">
+                        <i class="fas fa-chart-line fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="metric-widget">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-1">
+                            <i class="fas fa-chart-area text-success me-1"></i>
+                            平均PBR
+                        </h6>
+                        <div class="widget-value text-success" id="avg-pbr">{{ market_metrics.avg_pbr|floatformat:2|default:"--" }}</div>
+                        <span class="widget-change change-positive">
+                            <i class="fas fa-arrow-up me-1"></i>+0.2% (1日)
+                        </span>
+                    </div>
+                    <div class="text-success">
+                        <i class="fas fa-chart-area fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="metric-widget">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-1">
+                            <i class="fas fa-coins text-warning me-1"></i>
+                            高配当株数
+                        </h6>
+                        <div class="widget-value text-warning" id="high-dividend-count">{{ market_metrics.high_dividend_count|default:"--" }}</div>
+                        <span class="widget-change change-positive">
+                            利回り3%以上
+                        </span>
+                    </div>
+                    <div class="text-warning">
+                        <i class="fas fa-coins fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="metric-widget">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-1">
+                            <i class="fas fa-rocket text-info me-1"></i>
+                            成長株数
+                        </h6>
+                        <div class="widget-value text-info" id="growth-count">{{ market_metrics.growth_count|default:"--" }}</div>
+                        <span class="widget-change change-positive">
+                            連続増益企業
+                        </span>
+                    </div>
+                    <div class="text-info">
+                        <i class="fas fa-rocket fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- セクター分析ヒートマップ -->
+        <div class="col-lg-8 mb-4">
+            <div class="heatmap-container">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5>
+                        <i class="fas fa-fire text-danger me-2"></i>
+                        セクター・ヒートマップ
+                    </h5>
+                    <div class="dropdown">
+                        <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-filter me-1"></i>表示期間
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#" onclick="updateHeatmap('1d')">1日</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="updateHeatmap('1w')">1週間</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="updateHeatmap('1m')">1ヶ月</a></li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="heatmap-grid" id="sector-heatmap">
+                    <!-- セクターデータはJavaScriptで動的生成 -->
+                    <div class="heatmap-cell sector-positive">
+                        <div>医薬品</div>
+                        <div>+2.3%</div>
+                    </div>
+                    <div class="heatmap-cell sector-negative">
+                        <div>銀行業</div>
+                        <div>-1.2%</div>
+                    </div>
+                    <div class="heatmap-cell sector-positive">
+                        <div>電気機器</div>
+                        <div>+3.1%</div>
+                    </div>
+                    <div class="heatmap-cell sector-neutral">
+                        <div>食料品</div>
+                        <div>+0.1%</div>
+                    </div>
+                    <div class="heatmap-cell sector-positive">
+                        <div>情報通信</div>
+                        <div>+1.8%</div>
+                    </div>
+                    <div class="heatmap-cell sector-negative">
+                        <div>建設業</div>
+                        <div>-0.8%</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 注目銘柄ウォッチリスト -->
+        <div class="col-lg-4 mb-4">
+            <div class="watchlist-widget">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5>
+                        <i class="fas fa-star text-warning me-2"></i>
+                        注目銘柄
+                    </h5>
+                    <button class="btn btn-outline-primary btn-sm" onclick="addToWatchlist()">
+                        <i class="fas fa-plus me-1"></i>追加
+                    </button>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm performance-table">
+                        <thead>
+                            <tr>
+                                <th>銘柄</th>
+                                <th>PER</th>
+                                <th>変化率</th>
+                            </tr>
+                        </thead>
+                        <tbody id="watchlist-table">
+                            <tr>
+                                <td>
+                                    <strong>7203</strong><br>
+                                    <small class="text-muted">トヨタ</small>
+                                </td>
+                                <td>12.5</td>
+                                <td>
+                                    <span class="badge bg-success">+1.2%</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <strong>6758</strong><br>
+                                    <small class="text-muted">ソニー</small>
+                                </td>
+                                <td>15.3</td>
+                                <td>
+                                    <span class="badge bg-danger">-0.8%</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <strong>9984</strong><br>
+                                    <small class="text-muted">SBG</small>
+                                </td>
+                                <td>8.9</td>
+                                <td>
+                                    <span class="badge bg-success">+2.1%</span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- トップパフォーマー -->
+        <div class="col-lg-6 mb-4">
+            <div class="metric-widget">
+                <h5 class="mb-3">
+                    <i class="fas fa-trophy text-success me-2"></i>
+                    本日のトップパフォーマー
+                </h5>
+                <div class="table-responsive">
+                    <table class="table table-sm performance-table">
+                        <thead>
+                            <tr>
+                                <th>順位</th>
+                                <th>銘柄</th>
+                                <th>現在値</th>
+                                <th>変化率</th>
+                                <th>出来高</th>
+                            </tr>
+                        </thead>
+                        <tbody id="top-performers">
+                            <!-- データはJavaScriptで動的読み込み -->
+                            <tr>
+                                <td>1</td>
+                                <td>
+                                    <strong>4502</strong><br>
+                                    <small class="text-muted">武田薬品</small>
+                                </td>
+                                <td>¥4,820</td>
+                                <td>
+                                    <span class="badge bg-success">+5.2%</span>
+                                </td>
+                                <td>2.1M</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 市場ニュース -->
+        <div class="col-lg-6 mb-4">
+            <div class="news-widget">
+                <h5 class="mb-3">
+                    <i class="fas fa-newspaper text-info me-2"></i>
+                    マーケットニュース
+                </h5>
+                <div id="market-news">
+                    <div class="news-item">
+                        <div class="d-flex justify-content-between">
+                            <h6 class="mb-1">日経平均、3日続伸で取引終了</h6>
+                            <small class="text-muted">15分前</small>
+                        </div>
+                        <p class="mb-1 small text-muted">半導体関連株の上昇が市場全体を押し上げ...</p>
+                        <div class="d-flex gap-1">
+                            <span class="badge bg-light text-dark">日経平均</span>
+                            <span class="badge bg-light text-dark">半導体</span>
+                        </div>
+                    </div>
+                    <div class="news-item">
+                        <div class="d-flex justify-content-between">
+                            <h6 class="mb-1">FRB議事録、利下げ示唆の内容</h6>
+                            <small class="text-muted">1時間前</small>
+                        </div>
+                        <p class="mb-1 small text-muted">米連邦準備制度理事会の最新議事録が公開...</p>
+                        <div class="d-flex gap-1">
+                            <span class="badge bg-light text-dark">FRB</span>
+                            <span class="badge bg-light text-dark">金利</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- チャート分析 -->
+    <div class="row">
+        <div class="col-12 mb-4">
+            <div class="chart-container">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5>
+                        <i class="fas fa-chart-line text-primary me-2"></i>
+                        マーケット・トレンド分析
+                    </h5>
+                    <div class="btn-group" role="group">
+                        <input type="radio" class="btn-check" name="chart-period" id="chart-1d" checked>
+                        <label class="btn btn-outline-secondary btn-sm" for="chart-1d">1日</label>
+                        
+                        <input type="radio" class="btn-check" name="chart-period" id="chart-1w">
+                        <label class="btn btn-outline-secondary btn-sm" for="chart-1w">1週</label>
+                        
+                        <input type="radio" class="btn-check" name="chart-period" id="chart-1m">
+                        <label class="btn btn-outline-secondary btn-sm" for="chart-1m">1月</label>
+                        
+                        <input type="radio" class="btn-check" name="chart-period" id="chart-3m">
+                        <label class="btn btn-outline-secondary btn-sm" for="chart-3m">3月</label>
+                    </div>
+                </div>
+                <canvas id="market-trend-chart" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    // 統計情報のカウントアップアニメーション
-    document.addEventListener('DOMContentLoaded', function() {
-        const statsNumbers = document.querySelectorAll('.stats-number');
+// グローバル変数
+let searchTimeout;
+let autoRefreshInterval;
+let marketChart;
+
+// ページ読み込み時の初期化
+document.addEventListener('DOMContentLoaded', function() {
+    initializeSearch();
+    initializeChart();
+    loadTopPerformers();
+    loadMarketNews();
+    
+    // 自動更新を5分間隔で設定
+    autoRefreshInterval = setInterval(refreshDashboard, 300000);
+});
+
+// 銘柄検索機能
+function initializeSearch() {
+    const searchInput = document.getElementById('stock-search');
+    const resultsContainer = document.getElementById('search-results');
+    
+    searchInput.addEventListener('input', function() {
+        const query = this.value.trim();
         
-        statsNumbers.forEach(function(element) {
-            const targetNumber = parseInt(element.textContent.replace(/,/g, ''));
-            let currentNumber = 0;
-            const increment = targetNumber / 50;
-            
-            const timer = setInterval(function() {
-                currentNumber += increment;
-                if (currentNumber >= targetNumber) {
-                    currentNumber = targetNumber;
-                    clearInterval(timer);
-                }
-                element.textContent = Math.floor(currentNumber).toLocaleString('ja-JP');
-            }, 30);
-        });
+        // 入力クリア時は結果を非表示
+        if (query.length < 2) {
+            resultsContainer.style.display = 'none';
+            return;
+        }
+        
+        // 既存のタイムアウトをクリア
+        clearTimeout(searchTimeout);
+        
+        // 300ms後に検索実行（デバウンス）
+        searchTimeout = setTimeout(() => {
+            searchStocks(query);
+        }, 300);
     });
+    
+    // 検索結果外クリックで非表示
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.search-widget')) {
+            resultsContainer.style.display = 'none';
+        }
+    });
+}
+
+// 株式検索API呼び出し
+async function searchStocks(query) {
+    const resultsContainer = document.getElementById('search-results');
+    
+    try {
+        resultsContainer.innerHTML = '<div class="search-result-item">検索中...</div>';
+        resultsContainer.style.display = 'block';
+        
+        const response = await fetch(`/api/search/?q=${encodeURIComponent(query)}`);
+        const data = await response.json();
+        
+        if (data.results && data.results.length > 0) {
+            resultsContainer.innerHTML = data.results.map(stock => `
+                <div class="search-result-item" onclick="selectStock('${stock.code}')">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>${stock.code}</strong> - ${stock.name}
+                            <br><small class="text-muted">${stock.market || ''}</small>
+                        </div>
+                        <div>
+                            <i class="fas fa-arrow-right text-primary"></i>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        } else {
+            resultsContainer.innerHTML = '<div class="search-result-item text-muted">該当する銘柄が見つかりませんでした</div>';
+        }
+    } catch (error) {
+        console.error('検索エラー:', error);
+        resultsContainer.innerHTML = '<div class="search-result-item text-danger">検索エラーが発生しました</div>';
+    }
+}
+
+// 銘柄選択時の処理
+function selectStock(stockCode) {
+    document.getElementById('search-results').style.display = 'none';
+    document.getElementById('stock-search').value = `${stockCode} - 詳細表示中...`;
+    
+    // 銘柄詳細ページに遷移
+    window.location.href = `/stock/${stockCode}/`;
+}
+
+// クイック検索
+function quickSearch(type) {
+    const searchParams = new URLSearchParams();
+    
+    switch(type) {
+        case '高配当':
+            searchParams.set('dividend_yield_min', '3.0');
+            searchParams.set('sort_by', '-dividend_yield');
+            break;
+        case '割安':
+            searchParams.set('per_max', '15');
+            searchParams.set('pbr_max', '1.5');
+            searchParams.set('sort_by', 'per');
+            break;
+        case '成長':
+            searchParams.set('consecutive_profit_years', '5');
+            searchParams.set('revenue_growth_min', '5');
+            searchParams.set('sort_by', '-profit_growth');
+            break;
+    }
+    
+    window.location.href = `/screening/?${searchParams.toString()}`;
+}
+
+// チャート初期化
+function initializeChart() {
+    const ctx = document.getElementById('market-trend-chart').getContext('2d');
+    
+    marketChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: [], // 時間軸データ
+            datasets: [{
+                label: '日経平均',
+                data: [],
+                borderColor: '#667eea',
+                backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.2
+            }, {
+                label: 'TOPIX',
+                data: [],
+                borderColor: '#764ba2',
+                backgroundColor: 'rgba(118, 75, 162, 0.1)',
+                borderWidth: 2,
+                fill: false,
+                tension: 0.2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: false,
+                    grid: {
+                        color: 'rgba(0,0,0,0.1)'
+                    }
+                },
+                x: {
+                    grid: {
+                        color: 'rgba(0,0,0,0.1)'
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    backgroundColor: 'rgba(0,0,0,0.8)',
+                    titleColor: '#fff',
+                    bodyColor: '#fff'
+                }
+            }
+        }
+    });
+    
+    // 初期データ読み込み
+    loadChartData('1d');
+}
+
+// チャートデータ読み込み
+async function loadChartData(period) {
+    try {
+        const response = await fetch(`/api/market-data/?period=${period}`);
+        const data = await response.json();
+        
+        marketChart.data.labels = data.labels;
+        marketChart.data.datasets[0].data = data.nikkei;
+        marketChart.data.datasets[1].data = data.topix;
+        marketChart.update();
+    } catch (error) {
+        console.error('チャートデータ読み込みエラー:', error);
+    }
+}
+
+// トップパフォーマー読み込み
+async function loadTopPerformers() {
+    try {
+        const response = await fetch('/api/top-performers/');
+        const data = await response.json();
+        
+        const tbody = document.getElementById('top-performers');
+        tbody.innerHTML = data.performers.map((stock, index) => `
+            <tr onclick="selectStock('${stock.code}')" style="cursor: pointer;">
+                <td>${index + 1}</td>
+                <td>
+                    <strong>${stock.code}</strong><br>
+                    <small class="text-muted">${stock.name}</small>
+                </td>
+                <td>¥${stock.price.toLocaleString()}</td>
+                <td>
+                    <span class="badge ${stock.change >= 0 ? 'bg-success' : 'bg-danger'}">
+                        ${stock.change > 0 ? '+' : ''}${stock.change.toFixed(1)}%
+                    </span>
+                </td>
+                <td>${stock.volume}</td>
+            </tr>
+        `).join('');
+    } catch (error) {
+        console.error('トップパフォーマー読み込みエラー:', error);
+    }
+}
+
+// マーケットニュース読み込み
+async function loadMarketNews() {
+    try {
+        const response = await fetch('/api/market-news/');
+        const data = await response.json();
+        
+        const newsContainer = document.getElementById('market-news');
+        newsContainer.innerHTML = data.news.map(article => `
+            <div class="news-item">
+                <div class="d-flex justify-content-between">
+                    <h6 class="mb-1">${article.title}</h6>
+                    <small class="text-muted">${article.time}</small>
+                </div>
+                <p class="mb-1 small text-muted">${article.summary}</p>
+                <div class="d-flex gap-1">
+                    ${article.tags.map(tag => `<span class="badge bg-light text-dark">${tag}</span>`).join('')}
+                </div>
+            </div>
+        `).join('');
+    } catch (error) {
+        console.error('ニュース読み込みエラー:', error);
+    }
+}
+
+// ダッシュボード更新
+async function refreshDashboard() {
+    // 更新インジケーター表示
+    document.getElementById('last-update').innerHTML = '<i class="fas fa-spinner fa-spin"></i> 更新中...';
+    
+    try {
+        // 各種データを並行で更新
+        await Promise.all([
+            loadTopPerformers(),
+            loadMarketNews(),
+            loadChartData(document.querySelector('input[name="chart-period"]:checked').id.replace('chart-', ''))
+        ]);
+        
+        document.getElementById('last-update').textContent = new Date().toLocaleString('ja-JP');
+    } catch (error) {
+        console.error('ダッシュボード更新エラー:', error);
+        document.getElementById('last-update').textContent = '更新エラー';
+    }
+}
+
+// 自動更新の切り替え
+function toggleAutoRefresh() {
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+        autoRefreshInterval = null;
+        document.querySelector('button[onclick="toggleAutoRefresh()"]').innerHTML = 
+            '<i class="fas fa-play me-1"></i>自動更新';
+    } else {
+        autoRefreshInterval = setInterval(refreshDashboard, 300000);
+        document.querySelector('button[onclick="toggleAutoRefresh()"]').innerHTML = 
+            '<i class="fas fa-pause me-1"></i>自動停止';
+    }
+}
+
+// セクターヒートマップ更新
+function updateHeatmap(period) {
+    // セクターパフォーマンスデータを取得して更新
+    fetch(`/api/sector-performance/?period=${period}`)
+        .then(response => response.json())
+        .then(data => {
+            const heatmap = document.getElementById('sector-heatmap');
+            heatmap.innerHTML = data.sectors.map(sector => `
+                <div class="heatmap-cell ${sector.change >= 1 ? 'sector-positive' : sector.change <= -1 ? 'sector-negative' : 'sector-neutral'}"
+                     onclick="filterBySector('${sector.name}')">
+                    <div>${sector.name}</div>
+                    <div>${sector.change > 0 ? '+' : ''}${sector.change.toFixed(1)}%</div>
+                </div>
+            `).join('');
+        })
+        .catch(error => console.error('ヒートマップ更新エラー:', error));
+}
+
+// セクター別フィルタリング
+function filterBySector(sectorName) {
+    window.location.href = `/screening/?sector=${encodeURIComponent(sectorName)}`;
+}
+
+// ウォッチリストに追加
+function addToWatchlist() {
+    const stockCode = prompt('追加する銘柄コードを入力してください:');
+    if (stockCode) {
+        // ウォッチリスト追加API呼び出し
+        fetch('/api/watchlist/add/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''
+            },
+            body: JSON.stringify({ stock_code: stockCode })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('ウォッチリストに追加しました');
+                location.reload();
+            } else {
+                alert('追加に失敗しました: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('ウォッチリスト追加エラー:', error);
+            alert('エラーが発生しました');
+        });
+    }
+}
+
+// チャート期間変更
+document.querySelectorAll('input[name="chart-period"]').forEach(radio => {
+    radio.addEventListener('change', function() {
+        if (this.checked) {
+            loadChartData(this.id.replace('chart-', ''));
+        }
+    });
+});
+
+console.log('プロフェッショナル・ダッシュボード初期化完了');
 </script>
 {% endblock %}
