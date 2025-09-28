@@ -1,10 +1,50 @@
-# stock/forms.py - プロフェッショナル版
+# stock/forms.py - マスタデータ対応版
 from django import forms
 from django.core.validators import MinValueValidator, MaxValueValidator
 from decimal import Decimal
+from .models import Stock
 
 class StockScreeningForm(forms.Form):
-    """プロフェッショナル・スクリーニングフォーム"""
+    """プロフェッショナル・スクリーニングフォーム（マスタデータ対応）"""
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # マスタデータから動的に選択肢を生成
+        self._set_dynamic_choices()
+    
+    def _set_dynamic_choices(self):
+        """マスタデータから動的に選択肢を設定"""
+        try:
+            # 市場区分の動的取得
+            market_choices = [('', '全市場')]
+            markets = Stock.objects.exclude(
+                market__isnull=True
+            ).exclude(
+                market__exact=''
+            ).values_list('market', flat=True).distinct().order_by('market')
+            
+            for market in markets:
+                market_choices.append((market, market))
+            
+            self.fields['market'].choices = market_choices
+            
+            # 業種の動的取得
+            sector_choices = [('', '全業種')]
+            sectors = Stock.objects.exclude(
+                sector__isnull=True
+            ).exclude(
+                sector__exact=''
+            ).values_list('sector', flat=True).distinct().order_by('sector')
+            
+            for sector in sectors:
+                sector_choices.append((sector, sector))
+            
+            self.fields['sector'].choices = sector_choices
+            
+        except Exception as e:
+            # データベースエラー時のフォールバック
+            print(f"マスタデータ取得エラー: {e}")
     
     # ===================
     # バリュエーション指標
@@ -415,46 +455,18 @@ class StockScreeningForm(forms.Form):
     )
     
     # ===================
-    # 市場・業種・規模
+    # 市場・業種・規模（動的選択肢）
     # ===================
     market = forms.ChoiceField(
         label='市場区分',
-        choices=[
-            ('', '全市場'),
-            ('プライム', 'プライム市場'),
-            ('スタンダード', 'スタンダード市場'),
-            ('グロース', 'グロース市場'),
-        ],
+        choices=[],  # 動的に設定
         required=False,
         widget=forms.Select(attrs={'class': 'form-select'})
     )
     
     sector = forms.ChoiceField(
         label='業種',
-        choices=[
-            ('', '全業種'),
-            ('医薬品', '医薬品'),
-            ('電気機器', '電気機器'),
-            ('情報・通信業', '情報・通信業'),
-            ('輸送用機器', '輸送用機器'),
-            ('銀行業', '銀行業'),
-            ('食料品', '食料品'),
-            ('化学', '化学'),
-            ('機械', '機械'),
-            ('小売業', '小売業'),
-            ('建設業', '建設業'),
-            ('不動産業', '不動産業'),
-            ('証券・商品先物取引業', '証券業'),
-            ('保険業', '保険業'),
-            ('石油・石炭製品', '石油・石炭'),
-            ('鉄鋼', '鉄鋼'),
-            ('非鉄金属', '非鉄金属'),
-            ('ガラス・土石製品', 'ガラス・土石'),
-            ('繊維製品', '繊維製品'),
-            ('パルプ・紙', 'パルプ・紙'),
-            ('その他製品', 'その他製品'),
-            ('サービス業', 'サービス業'),
-        ],
+        choices=[],  # 動的に設定
         required=False,
         widget=forms.Select(attrs={'class': 'form-select'})
     )
@@ -586,13 +598,7 @@ class StockScreeningForm(forms.Form):
     
     exclude_sectors = forms.MultipleChoiceField(
         label='除外業種',
-        choices=[
-            ('銀行業', '銀行業'),
-            ('証券・商品先物取引業', '証券業'),
-            ('保険業', '保険業'),
-            ('不動産業', '不動産業'),
-            ('石油・石炭製品', '石油・石炭'),
-        ],
+        choices=[],  # 動的に設定される
         required=False,
         widget=forms.CheckboxSelectMultiple(attrs={'class': 'form-check-input'}),
         help_text='特定業種を除外'
@@ -608,7 +614,7 @@ class StockScreeningForm(forms.Form):
         }),
         help_text='流動性確保のための最低日平均出来高'
     )
-    
+
     def clean(self):
         """フォーム全体のバリデーション"""
         cleaned_data = super().clean()
@@ -701,6 +707,7 @@ class StockScreeningForm(forms.Form):
         
         return " & ".join(conditions) if conditions else "条件なし"
 
+
 class WatchlistForm(forms.Form):
     """ウォッチリストフォーム"""
     name = forms.CharField(
@@ -722,6 +729,7 @@ class WatchlistForm(forms.Form):
             'placeholder': 'このウォッチリストの説明...'
         })
     )
+
 
 class AlertForm(forms.Form):
     """アラートフォーム"""

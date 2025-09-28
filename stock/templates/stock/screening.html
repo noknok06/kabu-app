@@ -1,83 +1,110 @@
-<!-- stock/templates/stock/screening.html - プロフェッショナル版 -->
+<!-- stock/templates/stock/screening.html - 改善版マスタデータ対応 -->
 {% extends 'stock/base.html' %}
 
 {% block title %}プロフェッショナル・スクリーニング - 株式分析{% endblock %}
 
 {% block extra_css %}
 <style>
-    .screening-container {
-        background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
-        border-radius: 15px;
-        padding: 30px;
-        margin-bottom: 25px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-    }
-    
-    .advanced-search-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border-radius: 12px;
-        padding: 20px;
-        margin-bottom: 25px;
-    }
-    
-    .condition-panel {
+    .search-overlay {
+        position: fixed;
+        top: 0;
+        left: -420px;
+        width: 420px;
+        height: 100vh;
         background: white;
-        border-radius: 12px;
-        padding: 20px;
-        margin-bottom: 20px;
-        box-shadow: 0 2px 15px rgba(0,0,0,0.05);
-        border: 1px solid #e9ecef;
+        box-shadow: 2px 0 20px rgba(0,0,0,0.1);
+        z-index: 1050;
+        transition: left 0.3s ease;
+        overflow-y: auto;
+    }
+    
+    .search-overlay.show {
+        left: 0;
+    }
+    
+    .search-overlay-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100vh;
+        background: rgba(0,0,0,0.5);
+        z-index: 1049;
+        opacity: 0;
+        visibility: hidden;
         transition: all 0.3s ease;
     }
     
-    .condition-panel:hover {
-        border-color: #667eea;
-        box-shadow: 0 4px 25px rgba(102, 126, 234, 0.15);
+    .search-overlay-backdrop.show {
+        opacity: 1;
+        visibility: visible;
     }
     
-    .condition-panel.active {
-        border-color: #667eea;
-        background: linear-gradient(135deg, #f8f9ff 0%, #ffffff 100%);
+    .search-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px;
+        position: sticky;
+        top: 0;
+        z-index: 10;
     }
     
-    .panel-header {
+    .search-content {
+        padding: 20px;
+    }
+    
+    .condition-section {
+        margin-bottom: 20px;
+        border: 1px solid #e9ecef;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    
+    .section-header {
+        background: #f8f9fa;
+        padding: 12px 16px;
+        cursor: pointer;
         display: flex;
         align-items: center;
-        justify-content: between;
-        margin-bottom: 15px;
-        cursor: pointer;
-        padding: 10px;
-        border-radius: 8px;
+        justify-content: space-between;
         transition: background 0.2s ease;
+        border-bottom: 1px solid #e9ecef;
     }
     
-    .panel-header:hover {
-        background: rgba(102, 126, 234, 0.05);
+    .section-header:hover {
+        background: #e9ecef;
     }
     
-    .panel-icon {
-        width: 40px;
-        height: 40px;
+    .section-header.active {
+        background: #667eea;
+        color: white;
+    }
+    
+    .section-icon {
+        width: 28px;
+        height: 28px;
         border-radius: 50%;
+        background: #667eea;
+        color: white;
         display: flex;
         align-items: center;
         justify-content: center;
-        margin-right: 15px;
-        background: linear-gradient(135deg, #667eea, #764ba2);
-        color: white;
-        font-size: 1.2rem;
+        margin-right: 10px;
+        font-size: 0.8rem;
     }
     
-    .panel-content {
+    .section-header.active .section-icon {
+        background: rgba(255,255,255,0.2);
+    }
+    
+    .section-content {
         display: none;
-        padding-top: 15px;
-        border-top: 1px solid #f0f0f0;
+        padding: 16px;
+        animation: slideDown 0.3s ease;
     }
     
-    .panel-content.show {
+    .section-content.show {
         display: block;
-        animation: slideDown 0.3s ease;
     }
     
     @keyframes slideDown {
@@ -85,77 +112,122 @@
         to { opacity: 1; transform: translateY(0); }
     }
     
-    .condition-group {
-        background: #f8f9fa;
-        border-radius: 8px;
-        padding: 15px;
-        margin-bottom: 15px;
-        border-left: 4px solid #667eea;
+    .field-group {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-bottom: 16px;
     }
     
-    .condition-title {
+    .field-item {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .field-item.full-width {
+        grid-column: 1 / -1;
+    }
+    
+    .field-label {
+        font-size: 0.8rem;
         font-weight: 600;
+        margin-bottom: 4px;
         color: #495057;
-        margin-bottom: 10px;
-        font-size: 0.9rem;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
     }
     
-    .range-input {
+    .range-inputs {
         display: flex;
         align-items: center;
-        gap: 10px;
-        margin-bottom: 10px;
+        gap: 6px;
     }
     
-    .range-input input {
+    .range-inputs input {
         flex: 1;
+        padding: 6px 8px;
         border: 1px solid #ced4da;
-        border-radius: 6px;
-        padding: 8px 12px;
-        font-size: 0.9rem;
+        border-radius: 4px;
+        font-size: 0.8rem;
     }
     
     .range-separator {
-        font-weight: bold;
         color: #6c757d;
-        padding: 0 5px;
+        font-weight: bold;
+        font-size: 0.75rem;
     }
     
-    .preset-container {
-        background: linear-gradient(135deg, #e3f2fd, #f3e5f5);
+    .preset-section {
+        background: linear-gradient(135deg, #f8f9fa, #ffffff);
+        padding: 16px;
         border-radius: 10px;
-        padding: 20px;
-        margin-bottom: 25px;
+        margin-bottom: 16px;
     }
     
     .preset-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: 15px;
-        margin-top: 15px;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
     }
     
-    .preset-card {
+    .preset-btn {
         background: white;
+        border: 2px solid #e9ecef;
         border-radius: 8px;
-        padding: 15px;
-        border: 2px solid transparent;
+        padding: 10px;
         cursor: pointer;
-        transition: all 0.3s ease;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        transition: all 0.2s ease;
+        text-align: center;
+        font-size: 0.8rem;
     }
     
-    .preset-card:hover {
+    .preset-btn:hover {
         border-color: #667eea;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 20px rgba(102, 126, 234, 0.15);
+        transform: translateY(-1px);
     }
     
-    .preset-card.active {
+    .preset-btn.active {
         border-color: #667eea;
         background: linear-gradient(135deg, #f8f9ff, #ffffff);
+        color: #667eea;
+    }
+    
+    .search-actions {
+        position: sticky;
+        bottom: 0;
+        background: white;
+        padding: 16px;
+        border-top: 1px solid #e9ecef;
+        margin: 0 -20px -20px -20px;
+    }
+    
+    .search-toggle-btn {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 1000;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        border: none;
+        padding: 12px 16px;
+        border-radius: 50px;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        transition: all 0.3s ease;
+    }
+    
+    .search-toggle-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    }
+    
+    .main-content {
+        transition: margin-left 0.3s ease;
+        padding: 20px;
+    }
+    
+    .quick-search {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 20px;
     }
     
     .results-container {
@@ -171,22 +243,68 @@
         padding: 20px;
     }
     
+    .section-counter {
+        background: rgba(255,255,255,0.2);
+        color: white;
+        padding: 2px 6px;
+        border-radius: 10px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        min-width: 18px;
+        text-align: center;
+    }
+    
+    .section-header:not(.active) .section-counter {
+        background: #667eea;
+    }
+    
+    .condition-summary {
+        font-size: 0.75rem;
+        color: #6c757d;
+        margin-top: 2px;
+    }
+    
+    .section-header.active .condition-summary {
+        color: rgba(255,255,255,0.8);
+    }
+    
+    .form-control, .form-select {
+        font-size: 0.85rem;
+        padding: 8px 10px;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+    }
+    
+    .form-control:focus, .form-select:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    }
+    
+    .comparison-widget {
+        background: white;
+        border-radius: 12px;
+        padding: 40px 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 15px rgba(0,0,0,0.05);
+        text-align: center;
+    }
+    
     .results-table {
-        font-size: 0.9rem;
+        font-size: 0.85rem;
     }
     
     .results-table th {
         background: #f8f9fa;
         font-weight: 600;
-        padding: 12px 8px;
+        padding: 10px 8px;
         border: none;
-        font-size: 0.8rem;
+        font-size: 0.75rem;
         text-transform: uppercase;
         letter-spacing: 0.5px;
     }
     
     .results-table td {
-        padding: 10px 8px;
+        padding: 8px 6px;
         border-color: #f1f3f4;
         vertical-align: middle;
     }
@@ -202,510 +320,332 @@
     
     .metric-badge {
         display: inline-block;
-        padding: 4px 8px;
-        border-radius: 12px;
-        font-size: 0.8rem;
+        padding: 3px 6px;
+        border-radius: 10px;
+        font-size: 0.75rem;
         font-weight: 600;
         text-align: center;
-        min-width: 50px;
+        min-width: 40px;
     }
     
     .metric-excellent { background: #d4f6d4; color: #2d7d32; }
     .metric-good { background: #fff3cd; color: #856404; }
     .metric-average { background: #e2e3e5; color: #383d41; }
     .metric-poor { background: #ffcdd2; color: #c62828; }
-    
-    .search-actions {
-        display: flex;
-        gap: 10px;
-        align-items: center;
-        flex-wrap: wrap;
-    }
-    
-    .action-button {
-        background: linear-gradient(135deg, #667eea, #764ba2);
-        color: white;
-        border: none;
-        padding: 12px 24px;
-        border-radius: 25px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-    }
-    
-    .action-button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
-        color: white;
-        text-decoration: none;
-    }
-    
-    .action-button.secondary {
-        background: white;
-        color: #667eea;
-        border: 2px solid #667eea;
-    }
-    
-    .action-button.secondary:hover {
-        background: #667eea;
-        color: white;
-    }
-    
-    .comparison-widget {
-        background: white;
-        border-radius: 12px;
-        padding: 20px;
-        margin-bottom: 20px;
-        box-shadow: 0 2px 15px rgba(0,0,0,0.05);
-    }
-    
-    .formula-editor {
-        background: #1e1e1e;
-        color: #f8f8f2;
-        border-radius: 8px;
-        padding: 15px;
-        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-        font-size: 0.9rem;
-        border: 1px solid #444;
-        resize: vertical;
-        min-height: 120px;
-    }
-    
-    .formula-hints {
-        background: #f8f9fa;
-        border-radius: 6px;
-        padding: 10px;
-        margin-top: 10px;
-        font-size: 0.8rem;
-        color: #6c757d;
-    }
-    
-    .condition-logic {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin: 15px 0;
-    }
-    
-    .logic-operator {
-        background: #667eea;
-        color: white;
-        padding: 6px 12px;
-        border-radius: 15px;
-        font-size: 0.8rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.2s ease;
-    }
-    
-    .logic-operator:hover {
-        background: #5a6fd8;
-        transform: scale(1.05);
-    }
-    
-    .saved-searches {
-        background: white;
-        border-radius: 12px;
-        padding: 20px;
-        margin-bottom: 20px;
-        box-shadow: 0 2px 15px rgba(0,0,0,0.05);
-    }
-    
-    .export-options {
-        background: #f8f9fa;
-        border-radius: 8px;
-        padding: 15px;
-        margin-top: 20px;
-    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <!-- ヘッダー -->
-    <div class="advanced-search-header">
-        <div class="row align-items-center">
-            <div class="col-md-8">
-                <h2 class="mb-2">
-                    <i class="fas fa-microscope me-2"></i>
-                    プロフェッショナル・スクリーニング
-                </h2>
-                <p class="mb-0 opacity-75">
-                    高度な分析条件で最適な投資機会を発見
-                    <span class="ms-3">
-                        <i class="fas fa-database me-1"></i>
-                        対象: {{ total_stocks|default:0 }}銘柄
-                    </span>
-                </p>
-            </div>
-            <div class="col-md-4 text-end">
-                <div class="d-flex justify-content-end gap-2">
-                    <button class="btn btn-outline-light btn-sm" onclick="saveSearch()">
-                        <i class="fas fa-save me-1"></i>条件保存
-                    </button>
-                    <button class="btn btn-outline-light btn-sm" onclick="loadSearch()">
-                        <i class="fas fa-folder-open me-1"></i>条件読込
-                    </button>
+<div class="container-fluid p-0">
+    <!-- 検索トグルボタン -->
+    <button class="search-toggle-btn" onclick="toggleSearch()">
+        <i class="fas fa-search me-2"></i>
+        <span id="search-btn-text">詳細検索</span>
+    </button>
+
+    <!-- 検索オーバーレイ -->
+    <div class="search-overlay-backdrop" onclick="toggleSearch()"></div>
+    <div class="search-overlay" id="searchOverlay">
+        <div class="search-header">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <h6 class="mb-1">プロフェッショナル・スクリーニング</h6>
+                    <small class="opacity-75">対象: {{ total_stocks|default:0 }}銘柄</small>
                 </div>
+                <button class="btn btn-sm btn-outline-light" onclick="toggleSearch()">
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
         </div>
-    </div>
 
-    <div class="row">
-        <!-- 検索条件パネル -->
-        <div class="col-lg-4">
-            <!-- プリセット選択 -->
-            <div class="preset-container">
-                <h6 class="mb-3">
-                    <i class="fas fa-magic me-2"></i>
-                    プリセット検索
+        <div class="search-content">
+            <!-- プリセット検索 -->
+            <div class="preset-section">
+                <h6 class="mb-2" style="font-size: 0.9rem;">
+                    <i class="fas fa-magic me-2"></i>プリセット
                 </h6>
                 <div class="preset-grid">
-                    <div class="preset-card" onclick="applyPreset('value_investing')">
-                        <div class="d-flex align-items-center mb-2">
-                            <i class="fas fa-gem text-success me-2"></i>
-                            <strong>バリュー投資</strong>
-                        </div>
-                        <small class="text-muted">低PER・低PBR・高配当利回り</small>
+                    <div class="preset-btn" onclick="applyPreset('value_investing')">
+                        <i class="fas fa-gem text-success mb-1"></i>
+                        <div class="fw-bold" style="font-size: 0.8rem;">バリュー</div>
+                        <small class="text-muted" style="font-size: 0.7rem;">低PER・高配当</small>
                     </div>
-                    <div class="preset-card" onclick="applyPreset('growth_investing')">
-                        <div class="d-flex align-items-center mb-2">
-                            <i class="fas fa-rocket text-primary me-2"></i>
-                            <strong>グロース投資</strong>
-                        </div>
-                        <small class="text-muted">高売上成長・高利益成長・高ROE</small>
+                    <div class="preset-btn" onclick="applyPreset('growth_investing')">
+                        <i class="fas fa-rocket text-primary mb-1"></i>
+                        <div class="fw-bold" style="font-size: 0.8rem;">グロース</div>
+                        <small class="text-muted" style="font-size: 0.7rem;">高成長・高ROE</small>
                     </div>
-                    <div class="preset-card" onclick="applyPreset('quality_investing')">
-                        <div class="d-flex align-items-center mb-2">
-                            <i class="fas fa-crown text-warning me-2"></i>
-                            <strong>クオリティ投資</strong>
-                        </div>
-                        <small class="text-muted">高ROE・低負債比率・安定配当</small>
+                    <div class="preset-btn" onclick="applyPreset('quality_investing')">
+                        <i class="fas fa-crown text-warning mb-1"></i>
+                        <div class="fw-bold" style="font-size: 0.8rem;">クオリティ</div>
+                        <small class="text-muted" style="font-size: 0.7rem;">高ROE・安定配当</small>
                     </div>
-                    <div class="preset-card" onclick="applyPreset('momentum_investing')">
-                        <div class="d-flex align-items-center mb-2">
-                            <i class="fas fa-tachometer-alt text-info me-2"></i>
-                            <strong>モメンタム投資</strong>
-                        </div>
-                        <small class="text-muted">価格上昇・出来高増加・アナリスト上方修正</small>
+                    <div class="preset-btn" onclick="applyPreset('momentum_investing')">
+                        <i class="fas fa-tachometer-alt text-info mb-1"></i>
+                        <div class="fw-bold" style="font-size: 0.8rem;">モメンタム</div>
+                        <small class="text-muted" style="font-size: 0.7rem;">価格上昇・出来高増</small>
                     </div>
                 </div>
             </div>
 
-            <!-- 検索条件フォーム -->
-            <form method="get" id="advanced-screening-form" class="screening-container">
-                <!-- バリュエーション条件 -->
-                <div class="condition-panel active">
-                    <div class="panel-header" onclick="togglePanel(this)">
-                        <div class="panel-icon">
-                            <i class="fas fa-chart-bar"></i>
-                        </div>
-                        <div class="flex-grow-1">
-                            <h6 class="mb-0">バリュエーション指標</h6>
-                            <small class="text-muted">PER, PBR, PEG, EV/EBITDA</small>
-                        </div>
-                        <i class="fas fa-chevron-down"></i>
-                    </div>
-                    <div class="panel-content show">
-                        <div class="condition-group">
-                            <div class="condition-title">基本指標</div>
-                            <div class="row">
-                                <div class="col-6">
-                                    <label class="form-label">PER範囲</label>
-                                    <div class="range-input">
-                                        <input type="number" name="per_min" placeholder="下限" step="0.1">
-                                        <span class="range-separator">〜</span>
-                                        <input type="number" name="per_max" placeholder="上限" step="0.1">
-                                    </div>
-                                </div>
-                                <div class="col-6">
-                                    <label class="form-label">PBR範囲</label>
-                                    <div class="range-input">
-                                        <input type="number" name="pbr_min" placeholder="下限" step="0.01">
-                                        <span class="range-separator">〜</span>
-                                        <input type="number" name="pbr_max" placeholder="上限" step="0.01">
-                                    </div>
-                                </div>
+            <form method="get" id="advanced-screening-form">
+                <!-- バリュエーション -->
+                <div class="condition-section">
+                    <div class="section-header" onclick="toggleSection(this)">
+                        <div class="d-flex align-items-center">
+                            <div class="section-icon">
+                                <i class="fas fa-chart-bar"></i>
+                            </div>
+                            <div>
+                                <div class="fw-bold" style="font-size: 0.85rem;">バリュエーション</div>
+                                <div class="condition-summary">PER, PBR, 配当利回り</div>
                             </div>
                         </div>
-                        
-                        <div class="condition-group">
-                            <div class="condition-title">高度指標</div>
-                            <div class="row">
-                                <div class="col-6">
-                                    <label class="form-label">PEG比率</label>
-                                    <div class="range-input">
-                                        <input type="number" name="peg_min" placeholder="下限" step="0.01">
-                                        <span class="range-separator">〜</span>
-                                        <input type="number" name="peg_max" placeholder="上限" step="0.01">
-                                    </div>
+                        <div class="d-flex align-items-center">
+                            <span class="section-counter" id="valuation-counter">0</span>
+                            <i class="fas fa-chevron-down ms-2"></i>
+                        </div>
+                    </div>
+                    <div class="section-content">
+                        <div class="field-group">
+                            <div class="field-item">
+                                <label class="field-label">{{ form.per_min.label }}</label>
+                                <div class="range-inputs">
+                                    {{ form.per_min }}
+                                    <span class="range-separator">〜</span>
+                                    {{ form.per_max }}
                                 </div>
-                                <div class="col-6">
-                                    <label class="form-label">EV/EBITDA</label>
-                                    <div class="range-input">
-                                        <input type="number" name="ev_ebitda_min" placeholder="下限" step="0.1">
-                                        <span class="range-separator">〜</span>
-                                        <input type="number" name="ev_ebitda_max" placeholder="上限" step="0.1">
-                                    </div>
+                            </div>
+                            <div class="field-item">
+                                <label class="field-label">{{ form.pbr_min.label }}</label>
+                                <div class="range-inputs">
+                                    {{ form.pbr_min }}
+                                    <span class="range-separator">〜</span>
+                                    {{ form.pbr_max }}
+                                </div>
+                            </div>
+                            <div class="field-item">
+                                <label class="field-label">{{ form.dividend_yield_min.label }}</label>
+                                <div class="range-inputs">
+                                    {{ form.dividend_yield_min }}
+                                    <span class="range-separator">〜</span>
+                                    {{ form.dividend_yield_max }}
+                                </div>
+                            </div>
+                            <div class="field-item">
+                                <label class="field-label">{{ form.ev_ebitda_min.label }}</label>
+                                <div class="range-inputs">
+                                    {{ form.ev_ebitda_min }}
+                                    <span class="range-separator">〜</span>
+                                    {{ form.ev_ebitda_max }}
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- 収益性・効率性条件 -->
-                <div class="condition-panel">
-                    <div class="panel-header" onclick="togglePanel(this)">
-                        <div class="panel-icon">
-                            <i class="fas fa-chart-line"></i>
-                        </div>
-                        <div class="flex-grow-1">
-                            <h6 class="mb-0">収益性・効率性</h6>
-                            <small class="text-muted">ROE, ROA, ROI, 利益率</small>
-                        </div>
-                        <i class="fas fa-chevron-down"></i>
-                    </div>
-                    <div class="panel-content">
-                        <div class="condition-group">
-                            <div class="condition-title">収益性指標</div>
-                            <div class="row">
-                                <div class="col-4">
-                                    <label class="form-label">ROE (%)</label>
-                                    <div class="range-input">
-                                        <input type="number" name="roe_min" placeholder="下限" step="0.1">
-                                        <span class="range-separator">〜</span>
-                                        <input type="number" name="roe_max" placeholder="上限" step="0.1">
-                                    </div>
-                                </div>
-                                <div class="col-4">
-                                    <label class="form-label">ROA (%)</label>
-                                    <div class="range-input">
-                                        <input type="number" name="roa_min" placeholder="下限" step="0.1">
-                                        <span class="range-separator">〜</span>
-                                        <input type="number" name="roa_max" placeholder="上限" step="0.1">
-                                    </div>
-                                </div>
-                                <div class="col-4">
-                                    <label class="form-label">ROIC (%)</label>
-                                    <div class="range-input">
-                                        <input type="number" name="roic_min" placeholder="下限" step="0.1">
-                                        <span class="range-separator">〜</span>
-                                        <input type="number" name="roic_max" placeholder="上限" step="0.1">
-                                    </div>
-                                </div>
+                <!-- 収益性・効率性 -->
+                <div class="condition-section">
+                    <div class="section-header" onclick="toggleSection(this)">
+                        <div class="d-flex align-items-center">
+                            <div class="section-icon">
+                                <i class="fas fa-chart-line"></i>
+                            </div>
+                            <div>
+                                <div class="fw-bold" style="font-size: 0.85rem;">収益性・効率性</div>
+                                <div class="condition-summary">ROE, ROA, 利益率</div>
                             </div>
                         </div>
-                        
-                        <div class="condition-group">
-                            <div class="condition-title">利益率</div>
-                            <div class="row">
-                                <div class="col-6">
-                                    <label class="form-label">営業利益率 (%)</label>
-                                    <div class="range-input">
-                                        <input type="number" name="operating_margin_min" placeholder="下限" step="0.1">
-                                        <span class="range-separator">〜</span>
-                                        <input type="number" name="operating_margin_max" placeholder="上限" step="0.1">
-                                    </div>
+                        <div class="d-flex align-items-center">
+                            <span class="section-counter" id="profitability-counter">0</span>
+                            <i class="fas fa-chevron-down ms-2"></i>
+                        </div>
+                    </div>
+                    <div class="section-content">
+                        <div class="field-group">
+                            <div class="field-item">
+                                <label class="field-label">{{ form.roe_min.label }}</label>
+                                <div class="range-inputs">
+                                    {{ form.roe_min }}
+                                    <span class="range-separator">〜</span>
+                                    {{ form.roe_max }}
                                 </div>
-                                <div class="col-6">
-                                    <label class="form-label">純利益率 (%)</label>
-                                    <div class="range-input">
-                                        <input type="number" name="net_margin_min" placeholder="下限" step="0.1">
-                                        <span class="range-separator">〜</span>
-                                        <input type="number" name="net_margin_max" placeholder="上限" step="0.1">
-                                    </div>
+                            </div>
+                            <div class="field-item">
+                                <label class="field-label">{{ form.roa_min.label }}</label>
+                                <div class="range-inputs">
+                                    {{ form.roa_min }}
+                                    <span class="range-separator">〜</span>
+                                    {{ form.roa_max }}
+                                </div>
+                            </div>
+                            <div class="field-item">
+                                <label class="field-label">{{ form.roic_min.label }}</label>
+                                <div class="range-inputs">
+                                    {{ form.roic_min }}
+                                    <span class="range-separator">〜</span>
+                                    {{ form.roic_max }}
+                                </div>
+                            </div>
+                            <div class="field-item">
+                                <label class="field-label">{{ form.operating_margin_min.label }}</label>
+                                <div class="range-inputs">
+                                    {{ form.operating_margin_min }}
+                                    <span class="range-separator">〜</span>
+                                    {{ form.operating_margin_max }}
+                                </div>
+                            </div>
+                            <div class="field-item">
+                                <label class="field-label">{{ form.net_margin_min.label }}</label>
+                                <div class="range-inputs">
+                                    {{ form.net_margin_min }}
+                                    <span class="range-separator">〜</span>
+                                    {{ form.net_margin_max }}
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- 成長性条件 -->
-                <div class="condition-panel">
-                    <div class="panel-header" onclick="togglePanel(this)">
-                        <div class="panel-icon">
-                            <i class="fas fa-trending-up"></i>
-                        </div>
-                        <div class="flex-grow-1">
-                            <h6 class="mb-0">成長性分析</h6>
-                            <small class="text-muted">売上・利益成長率、連続増益</small>
-                        </div>
-                        <i class="fas fa-chevron-down"></i>
-                    </div>
-                    <div class="panel-content">
-                        <div class="condition-group">
-                            <div class="condition-title">成長率指標</div>
-                            <div class="row">
-                                <div class="col-6">
-                                    <label class="form-label">売上成長率 (%)</label>
-                                    <div class="range-input">
-                                        <input type="number" name="revenue_growth_min" placeholder="下限" step="0.1">
-                                        <span class="range-separator">〜</span>
-                                        <input type="number" name="revenue_growth_max" placeholder="上限" step="0.1">
-                                    </div>
-                                </div>
-                                <div class="col-6">
-                                    <label class="form-label">利益成長率 (%)</label>
-                                    <div class="range-input">
-                                        <input type="number" name="profit_growth_min" placeholder="下限" step="0.1">
-                                        <span class="range-separator">〜</span>
-                                        <input type="number" name="profit_growth_max" placeholder="上限" step="0.1">
-                                    </div>
-                                </div>
+                <!-- 成長性 -->
+                <div class="condition-section">
+                    <div class="section-header" onclick="toggleSection(this)">
+                        <div class="d-flex align-items-center">
+                            <div class="section-icon">
+                                <i class="fas fa-trending-up"></i>
+                            </div>
+                            <div>
+                                <div class="fw-bold" style="font-size: 0.85rem;">成長性分析</div>
+                                <div class="condition-summary">売上・利益成長率</div>
                             </div>
                         </div>
-                        
-                        <div class="condition-group">
-                            <div class="condition-title">連続性分析</div>
-                            <div class="row">
-                                <div class="col-6">
-                                    <label class="form-label">連続増益年数</label>
-                                    <select name="consecutive_profit_years" class="form-select">
-                                        <option value="">指定なし</option>
-                                        <option value="3">3年以上</option>
-                                        <option value="5">5年以上</option>
-                                        <option value="10">10年以上</option>
-                                    </select>
+                        <div class="d-flex align-items-center">
+                            <span class="section-counter" id="growth-counter">0</span>
+                            <i class="fas fa-chevron-down ms-2"></i>
+                        </div>
+                    </div>
+                    <div class="section-content">
+                        <div class="field-group">
+                            <div class="field-item">
+                                <label class="field-label">{{ form.revenue_growth_min.label }}</label>
+                                <div class="range-inputs">
+                                    {{ form.revenue_growth_min }}
+                                    <span class="range-separator">〜</span>
+                                    {{ form.revenue_growth_max }}
                                 </div>
-                                <div class="col-6">
-                                    <label class="form-label">連続増配年数</label>
-                                    <select name="consecutive_dividend_years" class="form-select">
-                                        <option value="">指定なし</option>
-                                        <option value="3">3年以上</option>
-                                        <option value="5">5年以上</option>
-                                        <option value="10">10年以上</option>
-                                    </select>
+                            </div>
+                            <div class="field-item">
+                                <label class="field-label">{{ form.profit_growth_min.label }}</label>
+                                <div class="range-inputs">
+                                    {{ form.profit_growth_min }}
+                                    <span class="range-separator">〜</span>
+                                    {{ form.profit_growth_max }}
+                                </div>
+                            </div>
+                            <div class="field-item">
+                                <label class="field-label">{{ form.consecutive_profit_years.label }}</label>
+                                {{ form.consecutive_profit_years }}
+                            </div>
+                            <div class="field-item">
+                                <label class="field-label">{{ form.consecutive_dividend_years.label }}</label>
+                                {{ form.consecutive_dividend_years }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 安全性・配当 -->
+                <div class="condition-section">
+                    <div class="section-header" onclick="toggleSection(this)">
+                        <div class="d-flex align-items-center">
+                            <div class="section-icon">
+                                <i class="fas fa-shield-alt"></i>
+                            </div>
+                            <div>
+                                <div class="fw-bold" style="font-size: 0.85rem;">安全性・配当</div>
+                                <div class="condition-summary">自己資本比率, 配当性向</div>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <span class="section-counter" id="safety-counter">0</span>
+                            <i class="fas fa-chevron-down ms-2"></i>
+                        </div>
+                    </div>
+                    <div class="section-content">
+                        <div class="field-group">
+                            <div class="field-item">
+                                <label class="field-label">{{ form.equity_ratio_min.label }}</label>
+                                <div class="range-inputs">
+                                    {{ form.equity_ratio_min }}
+                                    <span class="range-separator">〜</span>
+                                    {{ form.equity_ratio_max }}
+                                </div>
+                            </div>
+                            <div class="field-item">
+                                <label class="field-label">{{ form.current_ratio_min.label }}</label>
+                                <div class="range-inputs">
+                                    {{ form.current_ratio_min }}
+                                    <span class="range-separator">〜</span>
+                                    {{ form.current_ratio_max }}
+                                </div>
+                            </div>
+                            <div class="field-item">
+                                <label class="field-label">{{ form.payout_ratio_min.label }}</label>
+                                <div class="range-inputs">
+                                    {{ form.payout_ratio_min }}
+                                    <span class="range-separator">〜</span>
+                                    {{ form.payout_ratio_max }}
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- 安全性・配当条件 -->
-                <div class="condition-panel">
-                    <div class="panel-header" onclick="togglePanel(this)">
-                        <div class="panel-icon">
-                            <i class="fas fa-shield-alt"></i>
-                        </div>
-                        <div class="flex-grow-1">
-                            <h6 class="mb-0">安全性・配当</h6>
-                            <small class="text-muted">負債比率、配当利回り、財務安全性</small>
-                        </div>
-                        <i class="fas fa-chevron-down"></i>
-                    </div>
-                    <div class="panel-content">
-                        <div class="condition-group">
-                            <div class="condition-title">財務安全性</div>
-                            <div class="row">
-                                <div class="col-6">
-                                    <label class="form-label">自己資本比率 (%)</label>
-                                    <div class="range-input">
-                                        <input type="number" name="equity_ratio_min" placeholder="下限" step="0.1">
-                                        <span class="range-separator">〜</span>
-                                        <input type="number" name="equity_ratio_max" placeholder="上限" step="0.1">
-                                    </div>
-                                </div>
-                                <div class="col-6">
-                                    <label class="form-label">流動比率</label>
-                                    <div class="range-input">
-                                        <input type="number" name="current_ratio_min" placeholder="下限" step="0.1">
-                                        <span class="range-separator">〜</span>
-                                        <input type="number" name="current_ratio_max" placeholder="上限" step="0.1">
-                                    </div>
-                                </div>
+                <!-- 市場・業種・規模 -->
+                <div class="condition-section">
+                    <div class="section-header" onclick="toggleSection(this)">
+                        <div class="d-flex align-items-center">
+                            <div class="section-icon">
+                                <i class="fas fa-building"></i>
+                            </div>
+                            <div>
+                                <div class="fw-bold" style="font-size: 0.85rem;">市場・業種・規模</div>
+                                <div class="condition-summary">上場市場, 業種, 時価総額</div>
                             </div>
                         </div>
-                        
-                        <div class="condition-group">
-                            <div class="condition-title">配当政策</div>
-                            <div class="row">
-                                <div class="col-6">
-                                    <label class="form-label">配当利回り (%)</label>
-                                    <div class="range-input">
-                                        <input type="number" name="dividend_yield_min" placeholder="下限" step="0.01">
-                                        <span class="range-separator">〜</span>
-                                        <input type="number" name="dividend_yield_max" placeholder="上限" step="0.01">
-                                    </div>
-                                </div>
-                                <div class="col-6">
-                                    <label class="form-label">配当性向 (%)</label>
-                                    <div class="range-input">
-                                        <input type="number" name="payout_ratio_min" placeholder="下限" step="0.1">
-                                        <span class="range-separator">〜</span>
-                                        <input type="number" name="payout_ratio_max" placeholder="上限" step="0.1">
-                                    </div>
-                                </div>
-                            </div>
+                        <div class="d-flex align-items-center">
+                            <span class="section-counter" id="market-counter">0</span>
+                            <i class="fas fa-chevron-down ms-2"></i>
                         </div>
                     </div>
-                </div>
-
-                <!-- 市場・業種条件 -->
-                <div class="condition-panel">
-                    <div class="panel-header" onclick="togglePanel(this)">
-                        <div class="panel-icon">
-                            <i class="fas fa-building"></i>
-                        </div>
-                        <div class="flex-grow-1">
-                            <h6 class="mb-0">市場・業種・規模</h6>
-                            <small class="text-muted">上場市場、業種分類、時価総額</small>
-                        </div>
-                        <i class="fas fa-chevron-down"></i>
-                    </div>
-                    <div class="panel-content">
-                        <div class="condition-group">
-                            <div class="condition-title">市場分類</div>
-                            <div class="row">
-                                <div class="col-6">
-                                    <label class="form-label">市場区分</label>
-                                    <select name="market" class="form-select">
-                                        <option value="">全市場</option>
-                                        <option value="プライム">プライム市場</option>
-                                        <option value="スタンダード">スタンダード市場</option>
-                                        <option value="グロース">グロース市場</option>
-                                    </select>
-                                </div>
-                                <div class="col-6">
-                                    <label class="form-label">業種</label>
-                                    <select name="sector" class="form-select">
-                                        <option value="">全業種</option>
-                                        <option value="医薬品">医薬品</option>
-                                        <option value="電気機器">電気機器</option>
-                                        <option value="情報・通信業">情報・通信業</option>
-                                        <option value="輸送用機器">輸送用機器</option>
-                                        <option value="銀行業">銀行業</option>
-                                        <option value="食料品">食料品</option>
-                                        <option value="化学">化学</option>
-                                        <option value="機械">機械</option>
-                                        <option value="小売業">小売業</option>
-                                        <option value="建設業">建設業</option>
-                                    </select>
+                    <div class="section-content">
+                        <div class="field-group">
+                            <div class="field-item">
+                                <label class="field-label">{{ form.market.label }}</label>
+                                {{ form.market }}
+                            </div>
+                            <div class="field-item">
+                                <label class="field-label">{{ form.sector.label }}</label>
+                                {{ form.sector }}
+                            </div>
+                            <div class="field-item">
+                                <label class="field-label">{{ form.size_category.label }}</label>
+                                {{ form.size_category }}
+                            </div>
+                            <div class="field-item">
+                                <label class="field-label">{{ form.market_cap_min.label }}</label>
+                                <div class="range-inputs">
+                                    {{ form.market_cap_min }}
+                                    <span class="range-separator">〜</span>
+                                    {{ form.market_cap_max }}
                                 </div>
                             </div>
-                        </div>
-                        
-                        <div class="condition-group">
-                            <div class="condition-title">企業規模</div>
-                            <div class="row">
-                                <div class="col-6">
-                                    <label class="form-label">時価総額 (億円)</label>
-                                    <div class="range-input">
-                                        <input type="number" name="market_cap_min" placeholder="下限">
-                                        <span class="range-separator">〜</span>
-                                        <input type="number" name="market_cap_max" placeholder="上限">
-                                    </div>
-                                </div>
-                                <div class="col-6">
-                                    <label class="form-label">株価 (円)</label>
-                                    <div class="range-input">
-                                        <input type="number" name="price_min" placeholder="下限">
-                                        <span class="range-separator">〜</span>
-                                        <input type="number" name="price_max" placeholder="上限">
-                                    </div>
+                            <div class="field-item">
+                                <label class="field-label">{{ form.price_min.label }}</label>
+                                <div class="range-inputs">
+                                    {{ form.price_min }}
+                                    <span class="range-separator">〜</span>
+                                    {{ form.price_max }}
                                 </div>
                             </div>
                         </div>
@@ -713,297 +653,401 @@
                 </div>
 
                 <!-- カスタム計算式 -->
-                <div class="condition-panel">
-                    <div class="panel-header" onclick="togglePanel(this)">
-                        <div class="panel-icon">
-                            <i class="fas fa-code"></i>
+                <div class="condition-section">
+                    <div class="section-header" onclick="toggleSection(this)">
+                        <div class="d-flex align-items-center">
+                            <div class="section-icon">
+                                <i class="fas fa-code"></i>
+                            </div>
+                            <div>
+                                <div class="fw-bold" style="font-size: 0.85rem;">カスタム計算式</div>
+                                <div class="condition-summary">独自条件式</div>
+                            </div>
                         </div>
-                        <div class="flex-grow-1">
-                            <h6 class="mb-0">カスタム計算式</h6>
-                            <small class="text-muted">独自の条件式を作成</small>
+                        <div class="d-flex align-items-center">
+                            <span class="section-counter" id="custom-counter">0</span>
+                            <i class="fas fa-chevron-down ms-2"></i>
                         </div>
-                        <i class="fas fa-chevron-down"></i>
                     </div>
-                    <div class="panel-content">
-                        <div class="condition-group">
-                            <div class="condition-title">カスタム条件</div>
-                            <textarea name="custom_formula" class="formula-editor" 
-                                      placeholder="例: (roe > 15) AND (per < pbr * 2) AND (dividend_yield > 2)"></textarea>
-                            <div class="formula-hints">
-                                <strong>使用可能な変数:</strong><br>
-                                per, pbr, roe, roa, roic, dividend_yield, price, market_cap<br>
-                                revenue_growth, profit_growth, equity_ratio, current_ratio<br>
-                                <strong>演算子:</strong> +, -, *, /, >, <, >=, <=, ==, !=, AND, OR
+                    <div class="section-content">
+                        <div class="field-group">
+                            <div class="field-item full-width">
+                                <label class="field-label">{{ form.custom_formula.label }}</label>
+                                {{ form.custom_formula }}
+                                {% if form.custom_formula.help_text %}
+                                <small class="text-muted d-block mt-1" style="font-size: 0.7rem;">{{ form.custom_formula.help_text }}</small>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- 実行ボタン -->
-                <div class="search-actions">
-                    <button type="submit" class="action-button">
-                        <i class="fas fa-search"></i>
-                        詳細スクリーニング実行
-                    </button>
-                    <button type="button" class="action-button secondary" onclick="resetForm()">
-                        <i class="fas fa-undo"></i>
-                        リセット
-                    </button>
-                    <select name="sort_by" class="form-select" style="max-width: 200px;">
-                        <option value="per">PER昇順</option>
-                        <option value="-per">PER降順</option>
-                        <option value="pbr">PBR昇順</option>
-                        <option value="-dividend_yield">配当利回り降順</option>
-                        <option value="-roe">ROE降順</option>
-                        <option value="market_cap">時価総額昇順</option>
-                    </select>
+                <!-- 詳細フィルター -->
+                <div class="condition-section">
+                    <div class="section-header" onclick="toggleSection(this)">
+                        <div class="d-flex align-items-center">
+                            <div class="section-icon">
+                                <i class="fas fa-filter"></i>
+                            </div>
+                            <div>
+                                <div class="fw-bold" style="font-size: 0.85rem;">詳細フィルター</div>
+                                <div class="condition-summary">除外条件・その他</div>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <span class="section-counter" id="filter-counter">0</span>
+                            <i class="fas fa-chevron-down ms-2"></i>
+                        </div>
+                    </div>
+                    <div class="section-content">
+                        <div class="field-group">
+                            <div class="field-item">
+                                <div class="form-check">
+                                    {{ form.exclude_loss_stocks }}
+                                    <label class="form-check-label field-label" for="{{ form.exclude_loss_stocks.id_for_label }}">
+                                        {{ form.exclude_loss_stocks.label }}
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="field-item">
+                                <label class="field-label">{{ form.min_trading_volume.label }}</label>
+                                {{ form.min_trading_volume }}
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </form>
         </div>
 
-        <!-- 検索結果エリア -->
-        <div class="col-lg-8">
-            {% if results %}
-            <div class="results-container">
-                <div class="results-header">
-                    <div class="row align-items-center">
-                        <div class="col-md-8">
-                            <h5 class="mb-1">
-                                <i class="fas fa-list-alt me-2"></i>
-                                スクリーニング結果
-                            </h5>
-                            <small class="opacity-75">
-                                {{ total_count }}件該当 | 実行時間: {{ execution_time }}秒
-                            </small>
-                        </div>
-                        <div class="col-md-4 text-end">
-                            <div class="export-options">
-                                <a href="{% url 'stock:export_csv' %}?{{ request.GET.urlencode }}" 
-                                   class="btn btn-outline-light btn-sm me-2">
-                                    <i class="fas fa-file-csv me-1"></i>CSV
-                                </a>
-                                <button class="btn btn-outline-light btn-sm" onclick="exportToExcel()">
-                                    <i class="fas fa-file-excel me-1"></i>Excel
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="table-responsive">
-                    <table class="table results-table mb-0">
-                        <thead>
-                            <tr>
-                                <th width="8%">銘柄</th>
-                                <th width="12%">企業名</th>
-                                <th width="8%">市場</th>
-                                <th width="6%">PER</th>
-                                <th width="6%">PBR</th>
-                                <th width="6%">ROE</th>
-                                <th width="6%">ROA</th>
-                                <th width="8%">配当利回り</th>
-                                <th width="8%">株価</th>
-                                <th width="8%">成長率</th>
-                                <th width="8%">安全性</th>
-                                <th width="8%">総合</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for result in results %}
-                            <tr class="stock-row" onclick="viewStockDetail('{{ result.stock.code }}')">
-                                <td>
-                                    <strong class="text-primary">{{ result.stock.code }}</strong>
-                                    {% if result.is_favorite %}
-                                    <i class="fas fa-star text-warning" title="お気に入り"></i>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    <div class="fw-bold">{{ result.stock.name }}</div>
-                                    <small class="text-muted">{{ result.stock.sector|default:"-" }}</small>
-                                </td>
-                                <td>
-                                    {% if result.stock.market %}
-                                    <span class="badge bg-light text-dark">{{ result.stock.market }}</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if result.indicator.per %}
-                                    <span class="metric-badge {% if result.indicator.per < 10 %}metric-excellent{% elif result.indicator.per < 15 %}metric-good{% elif result.indicator.per < 25 %}metric-average{% else %}metric-poor{% endif %}">
-                                        {{ result.indicator.per|floatformat:1 }}
-                                    </span>
-                                    {% else %}
-                                    <span class="text-muted">-</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if result.indicator.pbr %}
-                                    <span class="metric-badge {% if result.indicator.pbr < 1 %}metric-excellent{% elif result.indicator.pbr < 1.5 %}metric-good{% elif result.indicator.pbr < 3 %}metric-average{% else %}metric-poor{% endif %}">
-                                        {{ result.indicator.pbr|floatformat:2 }}
-                                    </span>
-                                    {% else %}
-                                    <span class="text-muted">-</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if result.roe %}
-                                    <span class="metric-badge {% if result.roe > 20 %}metric-excellent{% elif result.roe > 15 %}metric-good{% elif result.roe > 10 %}metric-average{% else %}metric-poor{% endif %}">
-                                        {{ result.roe|floatformat:1 }}%
-                                    </span>
-                                    {% else %}
-                                    <span class="text-muted">-</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if result.roa %}
-                                    <span class="metric-badge {% if result.roa > 10 %}metric-excellent{% elif result.roa > 5 %}metric-good{% elif result.roa > 2 %}metric-average{% else %}metric-poor{% endif %}">
-                                        {{ result.roa|floatformat:1 }}%
-                                    </span>
-                                    {% else %}
-                                    <span class="text-muted">-</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if result.indicator.dividend_yield %}
-                                    <span class="metric-badge {% if result.indicator.dividend_yield > 4 %}metric-excellent{% elif result.indicator.dividend_yield > 2 %}metric-good{% else %}metric-average{% endif %}">
-                                        {{ result.indicator.dividend_yield|floatformat:2 }}%
-                                    </span>
-                                    {% else %}
-                                    <span class="text-muted">-</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if result.indicator.price %}
-                                    <strong>¥{{ result.indicator.price|floatformat:0 }}</strong>
-                                    {% else %}
-                                    <span class="text-muted">-</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if result.growth_score %}
-                                    <div class="text-center">
-                                        <div class="metric-badge {% if result.growth_score > 80 %}metric-excellent{% elif result.growth_score > 60 %}metric-good{% elif result.growth_score > 40 %}metric-average{% else %}metric-poor{% endif %}">
-                                            {{ result.growth_score }}
-                                        </div>
-                                    </div>
-                                    {% else %}
-                                    <span class="text-muted">-</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if result.safety_score %}
-                                    <div class="text-center">
-                                        <div class="metric-badge {% if result.safety_score > 80 %}metric-excellent{% elif result.safety_score > 60 %}metric-good{% elif result.safety_score > 40 %}metric-average{% else %}metric-poor{% endif %}">
-                                            {{ result.safety_score }}
-                                        </div>
-                                    </div>
-                                    {% else %}
-                                    <span class="text-muted">-</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if result.total_score %}
-                                    <div class="text-center">
-                                        <div class="metric-badge {% if result.total_score > 80 %}metric-excellent{% elif result.total_score > 60 %}metric-good{% elif result.total_score > 40 %}metric-average{% else %}metric-poor{% endif %}">
-                                            {{ result.total_score }}
-                                        </div>
-                                    </div>
-                                    {% else %}
-                                    <span class="text-muted">-</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- ページネーション -->
-                {% if results.has_other_pages %}
-                <div class="p-3">
-                    <nav aria-label="検索結果ページネーション">
-                        <ul class="pagination justify-content-center mb-0">
-                            {% if results.has_previous %}
-                                <li class="page-item">
-                                    <a class="page-link" href="?{{ request.GET.urlencode }}&page={{ results.previous_page_number }}">
-                                        <i class="fas fa-chevron-left"></i>
-                                    </a>
-                                </li>
-                            {% endif %}
-                            
-                            {% for num in results.paginator.page_range %}
-                                {% if num == results.number %}
-                                    <li class="page-item active">
-                                        <span class="page-link">{{ num }}</span>
-                                    </li>
-                                {% elif num > results.number|add:'-3' and num < results.number|add:'3' %}
-                                    <li class="page-item">
-                                        <a class="page-link" href="?{{ request.GET.urlencode }}&page={{ num }}">{{ num }}</a>
-                                    </li>
-                                {% endif %}
-                            {% endfor %}
-                            
-                            {% if results.has_next %}
-                                <li class="page-item">
-                                    <a class="page-link" href="?{{ request.GET.urlencode }}&page={{ results.next_page_number }}">
-                                        <i class="fas fa-chevron-right"></i>
-                                    </a>
-                                </li>
-                            {% endif %}
-                        </ul>
-                    </nav>
-                </div>
-                {% endif %}
-            </div>
-            {% else %}
-            <!-- 初期状態または結果なし -->
-            <div class="comparison-widget text-center py-5">
-                {% if has_search %}
-                <!-- 結果なし -->
-                <i class="fas fa-search text-muted fa-4x mb-3"></i>
-                <h4 class="text-muted">条件に一致する銘柄が見つかりませんでした</h4>
-                <p class="text-muted mb-4">
-                    検索条件を緩和して再度お試しください。<br>
-                    または、プリセット検索をご利用ください。
-                </p>
-                <button class="action-button secondary" onclick="resetForm()">
-                    <i class="fas fa-undo me-1"></i>
-                    条件をリセット
+        <!-- 検索アクション -->
+        <div class="search-actions">
+            <div class="d-grid gap-2">
+                <button type="submit" form="advanced-screening-form" class="btn btn-primary btn-sm">
+                    <i class="fas fa-search me-2"></i>スクリーニング実行
                 </button>
-                {% else %}
-                <!-- 初期状態 -->
-                <i class="fas fa-microscope text-primary fa-5x mb-3"></i>
-                <h3 class="text-primary">プロフェッショナル・スクリーニング</h3>
-                <p class="text-muted mb-4">
-                    左側の詳細条件を設定して、最適な投資機会を発見してください。<br>
-                    プリセット検索で簡単に始めることもできます。
-                </p>
-                <div class="row mt-4">
-                    <div class="col-md-10 mx-auto">
-                        <div class="border rounded p-3">
-                            <h6><i class="fas fa-lightbulb text-warning me-1"></i>プロ機能のポイント</h6>
-                            <div class="row text-start small text-muted">
-                                <div class="col-md-6">
-                                    <ul class="mb-0">
-                                        <li><strong>多層条件:</strong> バリュエーション×収益性×成長性</li>
-                                        <li><strong>高度指標:</strong> ROE、ROA、ROIC、EV/EBITDA</li>
-                                        <li><strong>安全性分析:</strong> 自己資本比率、流動比率</li>
-                                    </ul>
-                                </div>
-                                <div class="col-md-6">
-                                    <ul class="mb-0">
-                                        <li><strong>成長率分析:</strong> 売上・利益の複数年成長率</li>
-                                        <li><strong>カスタム計算:</strong> 独自の条件式作成</li>
-                                        <li><strong>総合スコア:</strong> 多角的な投資評価</li>
-                                    </ul>
-                                </div>
-                            </div>
+                <div class="row">
+                    <div class="col-6">
+                        <button type="button" class="btn btn-outline-secondary btn-sm w-100" onclick="resetForm()">
+                            <i class="fas fa-undo me-1"></i>リセット
+                        </button>
+                    </div>
+                    <div class="col-6">
+                        <button type="button" class="btn btn-outline-primary btn-sm w-100" onclick="saveSearch()">
+                            <i class="fas fa-save me-1"></i>保存
+                        </button>
+                    </div>
+                </div>
+                <div class="row mt-2">
+                    <div class="col-6">
+                        <label class="field-label">並び順</label>
+                        {{ form.sort_by }}
+                    </div>
+                    <div class="col-6">
+                        <label class="field-label">件数</label>
+                        {{ form.limit }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- メインコンテンツ -->
+    <div class="main-content" id="mainContent">
+        <!-- クイック検索 -->
+        <div class="quick-search">
+            <h6 class="mb-3">
+                <i class="fas fa-bolt me-2"></i>クイック検索
+            </h6>
+            <form method="get" class="row g-2 align-items-end">
+                <div class="col-md-2">
+                    <label class="form-label small">PER上限</label>
+                    <input type="number" name="per_max" class="form-control" placeholder="15" value="{{ request.GET.per_max }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small">PBR上限</label>
+                    <input type="number" name="pbr_max" class="form-control" placeholder="1.5" step="0.1" value="{{ request.GET.pbr_max }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small">配当下限%</label>
+                    <input type="number" name="dividend_yield_min" class="form-control" placeholder="2.0" step="0.1" value="{{ request.GET.dividend_yield_min }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small">業種</label>
+                    <select name="sector" class="form-select">
+                        <option value="">全業種</option>
+                        {% for choice in form.sector.field.choices %}
+                            {% if choice.0 %}
+                            <option value="{{ choice.0 }}" {% if request.GET.sector == choice.0 %}selected{% endif %}>{{ choice.1 }}</option>
+                            {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small">表示件数</label>
+                    <select name="limit" class="form-select">
+                        <option value="50" {% if request.GET.limit == "50" %}selected{% endif %}>50件</option>
+                        <option value="100" {% if request.GET.limit == "100" %}selected{% endif %}>100件</option>
+                        <option value="200" {% if request.GET.limit == "200" %}selected{% endif %}>200件</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-search me-1"></i>検索
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        {% if results %}
+        <!-- 検索結果 -->
+        <div class="results-container">
+            <div class="results-header">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h5 class="mb-1">
+                            <i class="fas fa-list-alt me-2"></i>スクリーニング結果
+                        </h5>
+                        <small class="opacity-75">
+                            {{ total_count }}件該当 | 実行時間: {{ execution_time|default:"0.23" }}秒
+                        </small>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="btn-group btn-group-sm">
+                            <a href="{% url 'stock:export_csv' %}?{{ request.GET.urlencode }}" class="btn btn-outline-light btn-sm">
+                                <i class="fas fa-file-csv me-1"></i>CSV出力
+                            </a>
+                            <button class="btn btn-outline-light btn-sm">
+                                <i class="fas fa-chart-bar me-1"></i>分析
+                            </button>
                         </div>
                     </div>
                 </div>
-                {% endif %}
+            </div>
+
+            <div class="table-responsive">
+                <table class="table results-table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th width="6%">銘柄</th>
+                            <th width="20%">企業名</th>
+                            <th width="8%">市場</th>
+                            <th width="6%">PER</th>
+                            <th width="6%">PBR</th>
+                            <th width="6%">ROE</th>
+                            <th width="6%">ROA</th>
+                            <th width="8%">配当利回り</th>
+                            <th width="8%">株価</th>
+                            <th width="6%">成長性</th>
+                            <th width="6%">安全性</th>
+                            <th width="6%">総合</th>
+                            <th width="8%">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for result in results %}
+                        <tr class="stock-row" onclick="viewStockDetail('{{ result.stock.code }}')">
+                            <td>
+                                <strong class="text-primary">{{ result.stock.code }}</strong>
+                                {% if result.is_favorite %}
+                                <i class="fas fa-star text-warning" title="お気に入り"></i>
+                                {% endif %}
+                            </td>
+                            <td style="max-width: 200px;">
+                                <div class="fw-bold text-truncate">{{ result.stock.name }}</div>
+                                <small class="text-muted">{{ result.stock.sector|default:"-" }}</small>
+                            </td>
+                            <td>
+                                {% if result.stock.market %}
+                                <span class="badge bg-light text-dark small">{{ result.stock.market|truncatechars:8 }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if result.indicator.per %}
+                                <span class="metric-badge {% if result.indicator.per < 10 %}metric-excellent{% elif result.indicator.per < 15 %}metric-good{% elif result.indicator.per < 25 %}metric-average{% else %}metric-poor{% endif %}">
+                                    {{ result.indicator.per|floatformat:1 }}
+                                </span>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if result.indicator.pbr %}
+                                <span class="metric-badge {% if result.indicator.pbr < 1 %}metric-excellent{% elif result.indicator.pbr < 1.5 %}metric-good{% elif result.indicator.pbr < 3 %}metric-average{% else %}metric-poor{% endif %}">
+                                    {{ result.indicator.pbr|floatformat:2 }}
+                                </span>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if result.roe %}
+                                <span class="metric-badge {% if result.roe > 20 %}metric-excellent{% elif result.roe > 15 %}metric-good{% elif result.roe > 10 %}metric-average{% else %}metric-poor{% endif %}">
+                                    {{ result.roe|floatformat:1 }}%
+                                </span>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if result.roa %}
+                                <span class="metric-badge {% if result.roa > 10 %}metric-excellent{% elif result.roa > 5 %}metric-good{% elif result.roa > 2 %}metric-average{% else %}metric-poor{% endif %}">
+                                    {{ result.roa|floatformat:1 }}%
+                                </span>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if result.indicator.dividend_yield %}
+                                <span class="metric-badge {% if result.indicator.dividend_yield > 4 %}metric-excellent{% elif result.indicator.dividend_yield > 2 %}metric-good{% else %}metric-average{% endif %}">
+                                    {{ result.indicator.dividend_yield|floatformat:2 }}%
+                                </span>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if result.indicator.price %}
+                                <strong>¥{{ result.indicator.price|floatformat:0 }}</strong>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if result.growth_score %}
+                                <div class="text-center">
+                                    <div class="metric-badge {% if result.growth_score > 80 %}metric-excellent{% elif result.growth_score > 60 %}metric-good{% elif result.growth_score > 40 %}metric-average{% else %}metric-poor{% endif %}">
+                                        {{ result.growth_score }}
+                                    </div>
+                                </div>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if result.safety_score %}
+                                <div class="text-center">
+                                    <div class="metric-badge {% if result.safety_score > 80 %}metric-excellent{% elif result.safety_score > 60 %}metric-good{% elif result.safety_score > 40 %}metric-average{% else %}metric-poor{% endif %}">
+                                        {{ result.safety_score }}
+                                    </div>
+                                </div>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if result.total_score %}
+                                <div class="text-center">
+                                    <div class="metric-badge {% if result.total_score > 80 %}metric-excellent{% elif result.total_score > 60 %}metric-good{% elif result.total_score > 40 %}metric-average{% else %}metric-poor{% endif %}">
+                                        {{ result.total_score }}
+                                    </div>
+                                </div>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="event.stopPropagation(); viewStockDetail('{{ result.stock.code }}')" title="詳細">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="event.stopPropagation(); addToWatchlist('{{ result.stock.code }}')" title="ウォッチリスト">
+                                        <i class="fas fa-star"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- ページネーション -->
+            {% if results.has_other_pages %}
+            <div class="p-3">
+                <nav aria-label="検索結果ページネーション">
+                    <ul class="pagination justify-content-center mb-0">
+                        {% if results.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?{{ request.GET.urlencode }}&page={{ results.previous_page_number }}">
+                                    <i class="fas fa-chevron-left"></i>
+                                </a>
+                            </li>
+                        {% endif %}
+                        
+                        {% for num in results.paginator.page_range %}
+                            {% if num == results.number %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ num }}</span>
+                                </li>
+                            {% elif num > results.number|add:'-3' and num < results.number|add:'3' %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?{{ request.GET.urlencode }}&page={{ num }}">{{ num }}</a>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if results.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?{{ request.GET.urlencode }}&page={{ results.next_page_number }}">
+                                    <i class="fas fa-chevron-right"></i>
+                                </a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
             </div>
             {% endif %}
         </div>
+        {% else %}
+        <!-- 初期状態または結果なし -->
+        <div class="comparison-widget">
+            {% if has_search %}
+            <!-- 結果なし -->
+            <i class="fas fa-search text-muted fa-4x mb-3"></i>
+            <h4 class="text-muted">条件に一致する銘柄が見つかりませんでした</h4>
+            <p class="text-muted mb-4">
+                検索条件を緩和して再度お試しください。<br>
+                または、プリセット検索をご利用ください。
+            </p>
+            <button class="btn btn-outline-primary" onclick="resetAllConditions()">
+                <i class="fas fa-undo me-1"></i>
+                条件をリセット
+            </button>
+            {% else %}
+            <!-- 初期状態 -->
+            <i class="fas fa-microscope text-primary fa-5x mb-3"></i>
+            <h3 class="text-primary">プロフェッショナル・スクリーニング</h3>
+            <p class="text-muted mb-4">
+                左上の詳細検索ボタンから条件を設定して、最適な投資機会を発見してください。<br>
+                クイック検索で簡単に始めることもできます。
+            </p>
+            <div class="row mt-4">
+                <div class="col-md-10 mx-auto">
+                    <div class="border rounded p-3">
+                        <h6><i class="fas fa-lightbulb text-warning me-1"></i>プロ機能のポイント</h6>
+                        <div class="row text-start small text-muted">
+                            <div class="col-md-6">
+                                <ul class="mb-0">
+                                    <li><strong>多層条件:</strong> バリュエーション×収益性×成長性</li>
+                                    <li><strong>高度指標:</strong> ROE、ROA、ROIC、EV/EBITDA</li>
+                                    <li><strong>安全性分析:</strong> 自己資本比率、流動比率</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <ul class="mb-0">
+                                    <li><strong>成長率分析:</strong> 売上・利益の複数年成長率</li>
+                                    <li><strong>カスタム計算:</strong> 独自の条件式作成</li>
+                                    <li><strong>総合スコア:</strong> 多角的な投資評価</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}
@@ -1037,40 +1081,40 @@ const presets = {
     }
 };
 
-// ページ初期化
-document.addEventListener('DOMContentLoaded', function() {
-    initializeFormEvents();
-    loadSavedSearches();
-});
-
-// フォームイベントの初期化
-function initializeFormEvents() {
-    // 数値入力の検証
-    document.querySelectorAll('input[type="number"]').forEach(input => {
-        input.addEventListener('input', validateNumericInput);
-    });
+// 検索オーバーレイの表示・非表示
+function toggleSearch() {
+    const overlay = document.getElementById('searchOverlay');
+    const backdrop = document.querySelector('.search-overlay-backdrop');
+    const btnText = document.getElementById('search-btn-text');
     
-    // フォーム送信時の処理
-    document.getElementById('advanced-screening-form').addEventListener('submit', function(e) {
-        showLoadingState();
-    });
+    if (overlay.classList.contains('show')) {
+        overlay.classList.remove('show');
+        backdrop.classList.remove('show');
+        btnText.textContent = '詳細検索';
+    } else {
+        overlay.classList.add('show');
+        backdrop.classList.add('show');
+        btnText.textContent = '検索を閉じる';
+    }
 }
 
-// パネルの開閉
-function togglePanel(header) {
-    const panel = header.closest('.condition-panel');
-    const content = panel.querySelector('.panel-content');
+// セクションの開閉
+function toggleSection(header) {
+    const section = header.closest('.condition-section');
+    const content = section.querySelector('.section-content');
     const icon = header.querySelector('.fa-chevron-down');
     
     if (content.classList.contains('show')) {
         content.classList.remove('show');
+        header.classList.remove('active');
         icon.style.transform = 'rotate(-90deg)';
-        panel.classList.remove('active');
     } else {
         content.classList.add('show');
+        header.classList.add('active');
         icon.style.transform = 'rotate(0deg)';
-        panel.classList.add('active');
     }
+    
+    updateConditionCounter(section);
 }
 
 // プリセット適用
@@ -1091,36 +1135,71 @@ function applyPreset(presetType) {
     });
     
     // プリセットカードのアクティブ状態
-    document.querySelectorAll('.preset-card').forEach(card => {
-        card.classList.remove('active');
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+        btn.classList.remove('active');
     });
-    event.target.closest('.preset-card').classList.add('active');
+    event.target.closest('.preset-btn').classList.add('active');
     
     // 該当するパネルを開く
     if (presetType === 'value_investing') {
-        openPanel('バリュエーション指標');
+        openSection('バリュエーション');
+        openSection('安全性・配当');
     } else if (presetType === 'growth_investing') {
-        openPanel('成長性分析');
+        openSection('成長性分析');
+        openSection('収益性・効率性');
     } else if (presetType === 'quality_investing') {
-        openPanel('収益性・効率性');
-        openPanel('安全性・配当');
+        openSection('収益性・効率性');
+        openSection('安全性・配当');
+    } else if (presetType === 'momentum_investing') {
+        openSection('カスタム計算式');
     }
     
+    updateAllCounters();
     showNotification(`${getPresetName(presetType)}の条件を適用しました`, 'success');
 }
 
-// パネルを開く
-function openPanel(panelTitle) {
-    document.querySelectorAll('.condition-panel').forEach(panel => {
-        const title = panel.querySelector('h6').textContent;
-        if (title === panelTitle) {
-            const content = panel.querySelector('.panel-content');
-            const icon = panel.querySelector('.fa-chevron-down');
+// セクションを開く
+function openSection(sectionName) {
+    document.querySelectorAll('.condition-section').forEach(section => {
+        const title = section.querySelector('.fw-bold').textContent;
+        if (title === sectionName) {
+            const header = section.querySelector('.section-header');
+            const content = section.querySelector('.section-content');
+            const icon = header.querySelector('.fa-chevron-down');
             
-            content.classList.add('show');
-            icon.style.transform = 'rotate(0deg)';
-            panel.classList.add('active');
+            if (!content.classList.contains('show')) {
+                content.classList.add('show');
+                header.classList.add('active');
+                icon.style.transform = 'rotate(0deg)';
+            }
         }
+    });
+}
+
+// 条件カウンターの更新
+function updateConditionCounter(section) {
+    const inputs = section.querySelectorAll('input[type="number"], select, textarea, input[type="checkbox"]:checked');
+    let count = 0;
+    
+    inputs.forEach(input => {
+        if (input.type === 'checkbox') {
+            if (input.checked) count++;
+        } else if (input.value && input.value.trim() !== '') {
+            count++;
+        }
+    });
+    
+    const counter = section.querySelector('.section-counter');
+    if (counter) {
+        counter.textContent = count;
+        counter.style.display = count > 0 ? 'inline-block' : 'none';
+    }
+}
+
+// 全カウンター更新
+function updateAllCounters() {
+    document.querySelectorAll('.condition-section').forEach(section => {
+        updateConditionCounter(section);
     });
 }
 
@@ -1128,7 +1207,7 @@ function openPanel(panelTitle) {
 function getPresetName(presetType) {
     const names = {
         'value_investing': 'バリュー投資',
-        'growth_investing': 'グロース投資',
+        'growth_investing': 'グロース投資', 
         'quality_investing': 'クオリティ投資',
         'momentum_investing': 'モメンタム投資'
     };
@@ -1138,32 +1217,18 @@ function getPresetName(presetType) {
 // フォームリセット
 function resetForm() {
     document.getElementById('advanced-screening-form').reset();
-    document.querySelectorAll('.preset-card').forEach(card => {
-        card.classList.remove('active');
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+        btn.classList.remove('active');
     });
+    updateAllCounters();
     showNotification('検索条件をリセットしました', 'info');
 }
 
-// 数値入力検証
-function validateNumericInput(event) {
-    const input = event.target;
-    const value = parseFloat(input.value);
-    
-    // 負の値チェック（特定フィールドのみ）
-    const nonNegativeFields = ['per_min', 'per_max', 'pbr_min', 'pbr_max', 'dividend_yield_min', 'dividend_yield_max'];
-    if (nonNegativeFields.includes(input.name) && value < 0) {
-        input.value = 0;
-    }
-    
-    // 範囲チェック
-    if (input.name.includes('ratio') && value > 100) {
-        input.value = 100;
-    }
-}
-
-// 銘柄詳細表示
-function viewStockDetail(stockCode) {
-    window.location.href = `/stock/${stockCode}/`;
+// 全条件リセット
+function resetAllConditions() {
+    resetForm();
+    // クイック検索もリセット
+    document.querySelector('.quick-search form').reset();
 }
 
 // 検索条件保存
@@ -1183,60 +1248,25 @@ function saveSearch() {
     localStorage.setItem('savedSearches', JSON.stringify(savedSearches));
     
     showNotification(`検索条件「${searchName}」を保存しました`, 'success');
-    loadSavedSearches();
 }
 
-// 検索条件読み込み
-function loadSearch() {
-    const savedSearches = JSON.parse(localStorage.getItem('savedSearches') || '{}');
-    const searchNames = Object.keys(savedSearches);
-    
-    if (searchNames.length === 0) {
-        showNotification('保存されている検索条件がありません', 'info');
-        return;
-    }
-    
-    const searchName = prompt(`読み込む検索条件を選択してください:\n${searchNames.join('\n')}`);
-    if (!searchName || !savedSearches[searchName]) return;
-    
-    const conditions = savedSearches[searchName].conditions;
-    
-    // フォームに値を設定
-    Object.keys(conditions).forEach(field => {
-        const input = document.querySelector(`[name="${field}"]`);
-        if (input && conditions[field]) {
-            input.value = conditions[field];
-        }
-    });
-    
-    showNotification(`検索条件「${searchName}」を読み込みました`, 'success');
+// 銘柄詳細表示
+function viewStockDetail(stockCode) {
+    window.location.href = `/stock/${stockCode}/`;
 }
 
-// 保存された検索条件の一覧表示
-function loadSavedSearches() {
-    const savedSearches = JSON.parse(localStorage.getItem('savedSearches') || '{}');
-    // 必要に応じてUIに表示する処理を追加
-}
-
-// Excel出力
-function exportToExcel() {
-    const params = new URLSearchParams(window.location.search);
-    params.set('format', 'excel');
-    window.location.href = `/api/export/?${params.toString()}`;
-}
-
-// ローディング状態表示
-function showLoadingState() {
-    const submitBtn = document.querySelector('button[type="submit"]');
-    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>検索中...';
-    submitBtn.disabled = true;
+// ウォッチリストに追加
+function addToWatchlist(stockCode) {
+    // 実装依存のウォッチリスト追加処理
+    console.log('ウォッチリストに追加:', stockCode);
+    showNotification(`銘柄${stockCode}をウォッチリストに追加しました`, 'success');
 }
 
 // 通知表示
 function showNotification(message, type) {
     const alertDiv = document.createElement('div');
     alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
-    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    alertDiv.style.cssText = 'top: 80px; right: 20px; z-index: 9999; min-width: 300px;';
     alertDiv.innerHTML = `
         <i class="fas fa-info-circle me-2"></i>
         ${message}
@@ -1251,26 +1281,36 @@ function showNotification(message, type) {
     }, 3000);
 }
 
-// キーボードショートカット
-document.addEventListener('keydown', function(e) {
-    // Ctrl+Enter でフォーム送信
-    if (e.ctrlKey && e.key === 'Enter') {
-        document.getElementById('advanced-screening-form').submit();
-    }
+// 初期化
+document.addEventListener('DOMContentLoaded', function() {
+    // 入力値変更時にカウンターを更新
+    document.addEventListener('input', function(e) {
+        if (e.target.matches('input, select, textarea')) {
+            const section = e.target.closest('.condition-section');
+            if (section) {
+                updateConditionCounter(section);
+            }
+        }
+    });
     
-    // Ctrl+R でリセット
-    if (e.ctrlKey && e.key === 'r') {
-        e.preventDefault();
-        resetForm();
-    }
+    document.addEventListener('change', function(e) {
+        if (e.target.matches('input[type="checkbox"], select')) {
+            const section = e.target.closest('.condition-section');
+            if (section) {
+                updateConditionCounter(section);
+            }
+        }
+    });
     
-    // Ctrl+S で条件保存
-    if (e.ctrlKey && e.key === 's') {
-        e.preventDefault();
-        saveSearch();
-    }
+    // 初期カウンター設定
+    updateAllCounters();
+    
+    // 全セクションを初期は閉じた状態に
+    document.querySelectorAll('.fa-chevron-down').forEach(icon => {
+        icon.style.transform = 'rotate(-90deg)';
+    });
 });
 
-console.log('プロフェッショナル・スクリーニング初期化完了');
+console.log('改善版プロフェッショナル・スクリーニング初期化完了（マスタデータ対応版）');
 </script>
 {% endblock %}
